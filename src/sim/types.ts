@@ -227,7 +227,14 @@ export type Scenario = {
   requirements: Requirements
   /** What the traffic slider spans, ascending. Cost and capacity are graded against the last. */
   loadProfiles: LoadProfile[]
-  faultScript: FaultEvent[]
+  /**
+   * Pressure tests, as ROUNDS. Each round is applied to a clean system and its
+   * faults fire together; rounds do not accumulate. `[[a], [b]]` tests a and b
+   * separately, `[[a, b]]` tests them together, and those are very different
+   * tests -- a region loss during a network partition is not the same lesson as
+   * either alone.
+   */
+  faultScript: FaultEvent[][]
   declarations?: Declaration[]
   /** The palette, scoped deliberately. Decoys are part of the lesson. */
   availableKinds: ComponentKind[]
@@ -265,7 +272,13 @@ export type SimulationResult = {
     endToEnd: {
       p50Ms: number
       p99Ms: number
-      availability: number
+      /**
+       * P(system is up), composed from each component's baselineAvailability
+       * across independent failure domains. A property of the TOPOLOGY -- it is
+       * the same number with or without a fault applied. This is what the
+       * availability requirement is graded against.
+       */
+      topologyAvailability: number
       errorRate: number
       estimatedMonthlyCostUsd: number
       /** max over read paths of async replication lag + cache TTL. */
@@ -275,9 +288,20 @@ export type SimulationResult = {
   verdicts: Verdict[]
 }
 
+/** The outcome of one round of the fault script. Distinct from topology availability. */
+export type FaultRoundResult = {
+  faults: FaultEvent[]
+  /** Did the system still serve traffic inside the scenario's SLO? */
+  survived: boolean
+  errorRate: number
+  p99Ms: number
+  verdicts: Verdict[]
+}
+
 export type SimulateInput = {
   graph: ArchitectureGraph
   load: LoadProfile
+  /** One round's faults, applied together. Empty array = the baseline run. */
   faults: FaultEvent[]
   scenario: Scenario
 }

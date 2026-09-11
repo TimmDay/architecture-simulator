@@ -184,7 +184,9 @@ type Verdict = {
 
 **Grading rules** — settled while writing scenario 1, because each one changes what the scenario data has to say:
 
-- **Availability is graded only against the fault script, never at baseline.** Availability is a claim about behaviour under failure, not about a healthy steady state. Grading it at baseline too would double-count the same weakness — once in the steady-state score and once in the fault run — and would destroy the teaching beat where a naive build passes, feels fine, and is then exposed by a fault. Baseline grading is p99 + cost + consistency + durability + compliance.
+- **Topology availability and fault survival are two different things** and were briefly fused into one, which made the grading rule vacuous — the composed availability number is a property of the graph, identical with or without a fault applied, so "graded only under the fault script" didn't mean anything. They are now separate: **`topologyAvailability`** is `P(system is up)` composed from each component's `baselineAvailability` across independent failure domains, and it's what the availability requirement is graded against. **Fault survival** is per-round and binary — did this specific combination of faults still leave the system serving traffic inside the SLO.
+- **The teaching beat is preserved in the UI, not in the maths.** The baseline panel reports p99, cost, consistency, durability and compliance. Availability and fault survival are withheld until the player runs the pressure test — so a naive build genuinely does pass everything it's shown, feels fine, and is then exposed. That is a presentation decision and is honest about being one; it is not a claim that the number couldn't have been computed earlier.
+- **The fault script is a list of rounds, not a list of faults.** Each round starts from a clean system and its faults fire together; rounds do not accumulate. `[[a], [b]]` tests two faults separately and `[[a, b]]` tests them together, which are entirely different tests — a region loss *during* a network partition is not the lesson that either is alone.
 - **Cost and capacity are graded against the scenario's highest load profile**, not the slider's current position. Otherwise correct capacity planning (sizing for peak, plus one instance so the tier survives losing one) gets punished as over-provisioning whenever the player happens to be looking at a quiet Tuesday.
 - **Component utilization is `max(ρ_read, ρ_write)`**, not their sum — the binding constraint is whichever side runs out first.
 - **`node-down` kills instances, not components** (`instances`, default 1). Killing a whole component would mean a redundant tier buys nothing, which inverts the entire lesson of level 1.
@@ -289,7 +291,13 @@ Several per family, each with a different twist, so the same style gets attacked
 
 ### Levelling up
 
-Progressing a scenario family doesn't hand you a new brief — it makes the same physics harsher along three axes:
+**This is a change from the original framing, so flag it if it's not what you wanted.** The natural reading of "the scenario I'm diagramming levels up to include more distributed traffic" is that one scenario is replayed at escalating difficulty. That's not what the catalogue does: there are 20 distinct scenarios, each authored at a fixed level, and you progress by moving through them.
+
+The reason is that 20 scenarios × 5 levels is 100 configurations and most are incoherent — a helpdesk monolith at 99.99% under global thundering-herd load isn't a lesson, it's a broken brief. So **the table below is an authoring constraint, not a runtime multiplier**: a level-3 scenario must sit inside these requirement ranges and may draw on these faults.
+
+Where a harsher replay genuinely does make sense, a scenario can opt in with a `hardMode` field carrying tightened requirements and extra faults — authored deliberately, per scenario, rather than generated for all of them.
+
+The axes:
 
 | Level | Traffic | SLO | Faults unlocked |
 | --- | --- | --- | --- |
@@ -303,7 +311,7 @@ Budget tightens as levels rise, so the brute-force answer (add instances) stops 
 
 ### Grading and the feedback loop
 
-An attempt runs the scenario's load profiles and fault script through `simulate`, then grades each requirement independently — p99, availability, budget, durability, consistency, compliance — plus the declaration answers. Output is a per-requirement pass/fail with the actual numbers, the full verdict list ranked by severity, and a grade.
+An attempt runs the scenario's load profiles and every round of the fault script through `simulate`, then grades each requirement independently — p99, availability, budget, durability, consistency, compliance — plus the declaration answers. Output is a per-requirement pass/fail with the actual numbers, the full verdict list ranked by severity, and a grade.
 
 **Then the loop closes:** every failed verdict's `topicIds` enqueue the matching flashcards into the review deck, flagged with the scenario that earned them. Blow up a queue under Black Friday load and `messaging.backpressure` and `messaging.consumer-lag` are waiting in tomorrow's drill. This is the single most important integration in the app and it is why both modes share one taxonomy.
 

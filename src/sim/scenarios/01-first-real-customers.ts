@@ -87,7 +87,7 @@ You have $300 a month. Not $3,000. Build something you can defend.`,
 
   // L1 unlocks exactly one fault class. `instances: 1` matters -- this kills one
   // instance, not the component, so a redundant tier genuinely survives it.
-  faultScript: [{ kind: "node-down", componentId: "app", instances: 1 }],
+  faultScript: [[{ kind: "node-down", componentId: "app", instances: 1 }]],
 
   // Decoys are deliberate. sql-replica, cache and cdn are all plausible and all
   // wrong-by-default here; a palette containing only the right answer asks the

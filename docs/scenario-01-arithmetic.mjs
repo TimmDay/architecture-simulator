@@ -1,4 +1,14 @@
-// Sanity-check the scenario-1 arithmetic against the fidelity model in SPEC.md.
+// THROWAWAY. This is NOT the simulator.
+//
+// A one-off harness used to check that scenario 1 is winnable before committing
+// to its numbers. It reimplements rho, the latency heuristic, the availability
+// product and the cost model independently of src/sim/ -- which makes it a
+// second model that will drift the moment simulate() exists.
+//
+// It lives in docs/ as a record of how the scenario-1 figures were derived, and
+// is superseded in Phase 3 by a vitest test that asserts the same claim against
+// the real simulate(). Do not import it; do not fix bugs in it.
+
 const HOURS = 730
 const SPECS = {
   lb:      { r: 10000, w: 10000, p99: 8,  a: 0.9995, $: 0.025 },
