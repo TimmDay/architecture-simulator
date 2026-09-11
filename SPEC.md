@@ -124,75 +124,22 @@ Self-grading is the default and always available with no key configured. With `A
 
 Every palette item is a typed spec, not a decorative rectangle. This is what makes the simulation gradable rather than vibes.
 
-```ts
-type ComponentKind =
-  | "client" | "dns" | "cdn" | "load-balancer" | "api-gateway"
-  | "app-server" | "worker" | "serverless-function"
-  | "cache" | "sql-primary" | "sql-replica" | "nosql-node" | "shard-router"
-  | "queue" | "log-stream" | "object-store" | "search-index"
-  | "stream-processor" | "data-warehouse" | "config-service"
+**The types are canonical in [`src/sim/types.ts`](./src/sim/types.ts); the catalogue of costed component specs is in [`src/sim/catalogue.ts`](./src/sim/catalogue.ts).** This document records the decisions behind them, not a second copy that drifts.
 
-type ComponentSpec = {
-  kind: ComponentKind
-  capacityRps: number                          // per instance
-  baseLatency: { p50Ms: number; p99Ms: number }
-  stateful: boolean
-  durable: boolean
-  costPerInstanceHourUsd: number
-  failureModes: FailureModeId[]
-  supports: {
-    replicas: boolean
-    consistencyModes?: ConsistencyMode[]
-    encryptionAtRest?: boolean
-    autoscale?: boolean
-  }
-}
+The decisions worth knowing:
 
-type ConsistencyMode = "strong" | "quorum" | "eventual"
-
-type PlacedComponent = {
-  id: string
-  kind: ComponentKind
-  label: string
-  instances: number
-  region: RegionId
-  config: {
-    consistency?: ConsistencyMode
-    quorum?: { n: number; r: number; w: number }
-    encryptedAtRest?: boolean
-    authRequired?: boolean
-    rateLimitRps?: number
-    ttlSeconds?: number
-    autoscale?: { minInstances: number; maxInstances: number }
-    sessionStore?: "in-memory" | "shared" | "none"
-  }
-}
-```
-
-Consistency mode is in the model **from day one**, not bolted on later — without it, CAP cannot be drilled honestly (see below).
+- **Capacity is split into `{ readRps, writeRps }`**, not a single scalar. On a stateful component the two differ by an order of magnitude (a SQL primary might serve 2,000 reads/s and 400 writes/s), and "add a read replica" is only gradable if the engine knows a replica absorbs reads and not writes. A `sql-replica` declares `writeRps: 0`, which is what makes "you routed writes at a read replica" a detectable mistake rather than a rhetorical one.
+- **Every spec carries `baselineAvailability`** — the availability of one instance in one failure domain. Without it there is no arithmetic behind the availability grade.
+- **`config.availabilityZones` controls the failure domain.** Instances are distributed round-robin across zones; an AZ loss takes every instance in it, and availability composes as `1 − (1−a)^domains` where `domains = min(instances, zones)`. Default is 1, so N instances in one zone give **no** availability benefit — that's the shared-failure-domain trap, and it has to be a lever the player can actually pull or the rule catching it is unfalsifiable. It also means one instance can never be redundant, however many zones it's nominally spread over.
+- **`config.backups`** is separate from replication, because the durability requirement and the availability requirement are met by different things. Conflating them is the single most common junior mistake this app exists to correct.
+- **`client` is not a component kind.** Every graph has one implicit client node as its entry point — the traffic source, not something the player drags. Whatever the client connects to is where load propagation starts, which is also how the engine knows the entry point at all.
 
 ### Typed edges, not lines
 
-An arrow from app→DB and an arrow from DB→replica mean entirely different things, and the engine has to know which.
+An arrow from app→DB and an arrow from DB→replica mean entirely different things, and the engine has to know which. Hence `EdgeKind` (`sync-request` / `async-publish` / `replication` / `cdc`), plus two fields that carry most of the teaching weight:
 
-```ts
-type EdgeKind = "sync-request" | "async-publish" | "replication" | "cdc"
-
-type Edge = {
-  id: string
-  from: string
-  to: string
-  kind: EdgeKind
-  fanout?: number                              // downstream calls per inbound request
-  replication?: { mode: "sync" | "async"; lagMs: number }
-  timeoutMs?: number
-  retries?: number
-  jitter?: boolean
-  circuitBreaker?: boolean
-}
-```
-
-`fanout` is how the N+1 / chatty-services trap becomes measurable instead of rhetorical.
+- **`fanout`** — downstream calls per inbound request. This is how N+1 and chatty services become measurable instead of rhetorical.
+- **`carries`** (`"reads" | "writes" | "all"`) — which half of the workload travels the edge. The UI defaults it from the target's kind, but it stays explicit and overridable, because a mistake the player cannot express is a mistake the engine can never teach.
 
 ### One pure function
 
@@ -235,7 +182,14 @@ type Verdict = {
 }
 ```
 
-**Fidelity model:** rule-based checks plus closed-form utilization maths — `ρ = λ/μ` per component, with latency inflating as `base × 1/(1 − ρ)` (clamped) and requests dropping once `ρ ≥ 1`. Offered load is propagated by graph traversal from the entry point, multiplied by each edge's `fanout` and reduced by cache hit ratios. Availability composes as a product along serial paths, with redundancy folding in as `1 − p^n` — but **only across independent failure domains**. Instances sharing a region, AZ or host collapse to a single unit for availability purposes, so fake redundancy earns no bonus, and the `resilience` rule that warns about a shared failure domain and the number on the scoreboard always agree. Correlated and cascading faults are likewise applied at failure-domain granularity, not per instance.
+**Grading rules** — settled while writing scenario 1, because each one changes what the scenario data has to say:
+
+- **Availability is graded only against the fault script, never at baseline.** Availability is a claim about behaviour under failure, not about a healthy steady state. Grading it at baseline too would double-count the same weakness — once in the steady-state score and once in the fault run — and would destroy the teaching beat where a naive build passes, feels fine, and is then exposed by a fault. Baseline grading is p99 + cost + consistency + durability + compliance.
+- **Cost and capacity are graded against the scenario's highest load profile**, not the slider's current position. Otherwise correct capacity planning (sizing for peak, plus one instance so the tier survives losing one) gets punished as over-provisioning whenever the player happens to be looking at a quiet Tuesday.
+- **Component utilization is `max(ρ_read, ρ_write)`**, not their sum — the binding constraint is whichever side runs out first.
+- **`node-down` kills instances, not components** (`instances`, default 1). Killing a whole component would mean a redundant tier buys nothing, which inverts the entire lesson of level 1.
+
+**Fidelity model:** rule-based checks plus closed-form utilization maths — `ρ = λ/μ` per component, with latency inflating as `base × 1/(1 − ρ)` (clamped at 20×) and requests dropping once `ρ ≥ 1`. **That formula is a deliberate game heuristic, not queueing theory** — strictly it inflates the mean, and it is being applied to p99 because it produces a curve that reacts legibly to the traffic slider. It is labelled here so nobody later "fixes" it into something more correct and less playable. Offered load is propagated by graph traversal from the entry point, multiplied by each edge's `fanout` and reduced by cache hit ratios. Availability composes as a product along serial paths, with redundancy folding in as `1 − p^n` — but **only across independent failure domains**. Instances sharing a region, AZ or host collapse to a single unit for availability purposes, so fake redundancy earns no bonus, and the `resilience` rule that warns about a shared failure domain and the number on the scoreboard always agree. Correlated and cascading faults are likewise applied at failure-domain granularity, not per instance.
 
 A full discrete-event simulator was considered and **rejected**: the closed-form model is enough for the traffic slider to feel real, is far cheaper to build, and — critically — stays deterministic and unit-testable. If the queueing approximation ever becomes the limiting factor on realism, it can be swapped behind the same `simulate` signature.
 
@@ -257,48 +211,14 @@ Rules are pure predicates over `(graph, metrics, scenario)` returning `Verdict[]
 
 ### Scenarios
 
-```ts
-type Scenario = {
-  id: ScenarioId
-  title: string
-  brief: string                                 // the product/business framing
-  family: ArchitectureFamily
-  level: 1 | 2 | 3 | 4 | 5
-  requirements: {
-    p99Ms: number
-    availability: number                        // e.g. 0.999
-    monthlyBudgetUsd: number
-    durability: "best-effort" | "durable" | "geo-durable"
-    consistency: "strong" | "read-your-writes" | "eventual"
-    compliance?: ("pii" | "data-residency" | "pci")[]
-  }
-  loadProfiles: LoadProfile[]                   // what the traffic slider spans
-  faultScript: FaultEvent[]                     // the pressure tests, in order
-  declarations?: Declaration[]                  // see "Drilling CAP"
-  availableKinds: ComponentKind[]               // palette is scoped per scenario
-  topicIds: TopicId[]
-}
+Types in [`src/sim/types.ts`](./src/sim/types.ts); scenario data in [`src/sim/scenarios/`](./src/sim/scenarios/). Each scenario declares its brief, requirements, load profiles, fault script, a deliberately scoped palette, and its topic IDs.
 
-type LoadProfile = {
-  id: string
-  label: string                                 // "Tuesday afternoon" / "Black Friday"
-  rps: number
-  readWriteRatio: number
-  shape: "steady" | "diurnal" | "spiky" | "thundering-herd"
-  geography: "single-region" | "multi-region" | "global"
-}
+Two details that are easy to get wrong and expensive to change later:
 
-type FaultEvent =
-  | { kind: "node-down"; componentId: string }
-  | { kind: "region-down"; region: RegionId }
-  | { kind: "network-partition"; edgeId: string }
-  | { kind: "latency-spike"; componentId: string; multiplier: number }
-  | { kind: "traffic-spike"; multiplier: number }
-  | { kind: "cache-flush"; componentId: string }
-  | { kind: "poison-message"; componentId: string }
-  | { kind: "credential-stuffing"; rps: number }
-  | { kind: "unauthenticated-probe" }
-```
+- **`LoadProfile.peakRps` is peak, not mean.** Every capacity verdict depends on which one it is, and under `shape: "spiky"` the difference is large.
+- **`cacheableReadFraction` lives on the load profile, not on the cache.** The player never declares a hit ratio — a player-declared 99% is free marks. The engine derives the hit ratio from the workload's cacheability, the cache's TTL and the traffic shape.
+
+Each scenario also ships a **reference solution** graph as a test fixture. It isn't shown to the player; it pins the claim that a build exists which passes every requirement, so a catalogue change that quietly makes a scenario unwinnable fails CI instead of failing a learner.
 
 ### Drilling CAP honestly
 
