@@ -24,6 +24,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     baselineAvailability: 0.9995,
     stateful: false,
     durable: false,
+    managed: true,
+    optionalOnPath: false,
     costPerInstanceHourUsd: 0.025, // ~$18/mo
     failureModes: ["az-loss", "region-loss"],
     supports: { replicas: false },
@@ -37,6 +39,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     baselineAvailability: 0.99,
     stateful: false,
     durable: false,
+    managed: false,
+    optionalOnPath: false,
     costPerInstanceHourUsd: 0.04, // ~$29/mo
     failureModes: ["process-crash", "az-loss", "connection-exhaustion"],
     supports: { replicas: false, autoscale: true, sessionStore: true },
@@ -51,6 +55,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     baselineAvailability: 0.995,
     stateful: true,
     durable: true,
+    managed: true,
+    optionalOnPath: false,
     costPerInstanceHourUsd: 0.17, // ~$124/mo
     failureModes: ["disk-failure", "az-loss", "connection-exhaustion"],
     supports: {
@@ -70,6 +76,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     baselineAvailability: 0.995,
     stateful: true,
     durable: true,
+    managed: true,
+    optionalOnPath: true,
     costPerInstanceHourUsd: 0.17, // ~$124/mo
     failureModes: ["disk-failure", "az-loss", "replication-stall"],
     supports: {
@@ -87,9 +95,15 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     baselineAvailability: 0.995,
     stateful: true,
     durable: false,
+    managed: true,
+    optionalOnPath: true,
     costPerInstanceHourUsd: 0.03, // ~$22/mo
     failureModes: ["process-crash", "az-loss", "cache-eviction-storm"],
-    supports: { replicas: true, consistencyModes: ["eventual"], sessionStore: true },
+    supports: {
+      replicas: true,
+      consistencyModes: ["eventual"],
+      sessionStore: true,
+    },
   },
 
   cdn: {
@@ -100,6 +114,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     baselineAvailability: 0.9999,
     stateful: false,
     durable: false,
+    managed: true,
+    optionalOnPath: true,
     costPerInstanceHourUsd: 0.015, // ~$11/mo at this scale
     failureModes: [],
     supports: { replicas: false, consistencyModes: ["eventual"] },

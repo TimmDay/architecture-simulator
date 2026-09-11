@@ -1,0 +1,43 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+@theme {
+  --color-ink: #0b0e14;
+  --color-panel: #131822;
+  --color-panel-2: #1a2130;
+  --color-line: #273040;
+  --color-fog: #8a94a8;
+  --color-chalk: #e6ebf5;
+  --color-accent: #6ea8fe;
+  --color-pass: #4ade80;
+  --color-warn: #fbbf24;
+  --color-fail: #f87171;
+}
+
+html,
+body {
+  background: var(--color-ink);
+  color: var(--color-chalk);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* xyflow renders its own surface; keep it on our palette. */
+.react-flow__background {
+  background: var(--color-ink);
+}
+.react-flow__edge-path {
+  stroke: var(--color-line);
+  stroke-width: 1.5;
+}
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--color-accent);
+}
+.react-flow__handle {
+  background: var(--color-fog);
+  border: none;
+  width: 7px;
+  height: 7px;
+}
+.react-flow__attribution {
+  display: none;
+}

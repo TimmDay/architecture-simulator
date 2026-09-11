@@ -175,7 +175,13 @@ export const firstRealCustomersReference: ArchitectureGraph = {
       kind: "sync-request",
       carries: "all",
     },
-    { id: "lb-app", from: "lb", to: "app", kind: "sync-request", carries: "all" },
+    {
+      id: "lb-app",
+      from: "lb",
+      to: "app",
+      kind: "sync-request",
+      carries: "all",
+    },
     {
       id: "app-db",
       from: "app",

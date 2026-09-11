@@ -6,12 +6,9 @@
  * is what makes a score defensible rather than decorative.
  */
 
-// ---------------------------------------------------------------------------
-// Topics -- the shared taxonomy that joins Drill and Build
-// ---------------------------------------------------------------------------
+import type { TopicId } from "~/topics"
 
-/** `domain.subtopic`, e.g. "consistency.read-your-writes". See SPEC.md. */
-export type TopicId = string
+export type { TopicId }
 
 // ---------------------------------------------------------------------------
 // Components
@@ -75,6 +72,26 @@ export type ComponentSpec = {
   baselineAvailability: number
   stateful: boolean
   durable: boolean
+  /**
+   * A managed service bought as one logical unit, where the provider runs the
+   * redundancy internally (a cloud load balancer, a CDN). For these, spreading
+   * across zones does not require you to run more instances -- `baselineAvailability`
+   * already reflects the managed SLA. For unmanaged components, one instance can
+   * only ever occupy one failure domain.
+   */
+  managed: boolean
+  /**
+   * Failure degrades the system rather than breaking it: a cache falls back to
+   * the origin, a read replica falls back to the primary, a CDN falls back to
+   * the app. These must NOT multiply into serial availability -- doing so says
+   * that adding a cache makes a system less available, which is wrong and would
+   * teach the opposite of the intended lesson.
+   *
+   * Note this is a property of how the component is USED, not only of its kind:
+   * a cache holding shared sessions is on the critical path and the availability
+   * calculation treats it as required.
+   */
+  optionalOnPath: boolean
   costPerInstanceHourUsd: number
   failureModes: FailureModeId[]
   supports: {
