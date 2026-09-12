@@ -12,16 +12,37 @@
     "noUncheckedIndexedAccess": true,
     "checkJs": false,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["dom", "dom.iterable", "ES2022"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "ES2022"
+    ],
     "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "preserve",
-    "plugins": [{ "name": "next" }],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "incremental": true,
     "baseUrl": ".",
-    "paths": { "~/*": ["./src/*"] }
+    "paths": {
+      "~/*": [
+        "./src/*"
+      ]
+    }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "docs"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "next-env.d.ts",
+    ".next-build/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "docs"
+  ]
 }

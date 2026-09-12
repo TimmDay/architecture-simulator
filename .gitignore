@@ -41,3 +41,6 @@ yarn-error.log*
 
 # personal Claude Code settings (not shared)
 /.claude/settings.local.json
+
+# production build output, kept separate so it cannot clobber a running dev server
+/.next-build/

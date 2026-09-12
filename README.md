@@ -30,11 +30,15 @@ pnpm build       # production build
 pnpm smoke       # real-browser smoke test (needs `pnpm dev` running in another terminal)
 ```
 
-**If a page hangs on "Loading deck…" or the canvas is missing**, the dev cache is
-stale — this happens if dependencies changed while the dev server was running:
+`pnpm build` writes to `.next-build`, not `.next`, so a production build can run
+while `pnpm dev` is live without pulling the cache out from under it.
+
+**If a page hangs on "Loading deck…", loses its styling, or 404s on
+`layout.css` / `app-pages-internals.js`**, the dev cache is stale — installing a
+dependency while the dev server is running will do it:
 
 ```bash
-rm -rf .next && pnpm dev
+rm -rf .next && pnpm dev   # then hard-refresh the browser (⌘⇧R)
 ```
 
 ## Where things live

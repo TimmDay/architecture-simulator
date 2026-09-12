@@ -5,15 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "NEXT_DIST_DIR=.next-build next build",
+    "start": "NEXT_DIST_DIR=.next-build next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit && vitest run",
     "test": "vitest",
     "test:run": "vitest run",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,md}\" --cache",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "preview": "NEXT_DIST_DIR=.next-build next build && NEXT_DIST_DIR=.next-build next start"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.12",
