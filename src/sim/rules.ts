@@ -1,7 +1,13 @@
 import { CATALOGUE } from "./catalogue"
 import type { EffectiveComponent } from "./simulate"
-import { SATURATION_WARN, failureDomains } from "./simulate"
-import { CLIENT_NODE_ID } from "./types"
+import {
+  SATURATION_WARN,
+  EGRESS_USD_PER_RPS_MONTH,
+  crossesVendors,
+  failureDomains,
+  vendorFamily,
+} from "./simulate"
+import { CLIENT_NODE_ID, VENDOR_FAMILY_LABELS } from "./types"
 import type {
   ArchitectureGraph,
   FaultEvent,
@@ -812,6 +818,136 @@ export const RULES: Rule[] = [
         )
       }
       return out
+    },
+  },
+  // --- vendors -------------------------------------------------------------
+  {
+    id: "cost.cross-vendor-egress",
+    category: "cost",
+    check: ({ graph, result }) => {
+      const crossing = graph.edges.filter((e) => crossesVendors(graph, e))
+      if (crossing.length === 0) return null
+      const hot = crossing
+        .map((e) => {
+          const to = result.metrics.perComponent[e.to]
+          return {
+            edge: e,
+            rps: (to?.offeredReadRps ?? 0) + (to?.offeredWriteRps ?? 0),
+          }
+        })
+        .sort((a, b) => b.rps - a.rps)
+      const worst = hot[0]
+      if (!worst || worst.rps < 1) return null
+      const monthly = Math.round(worst.rps * EGRESS_USD_PER_RPS_MONTH)
+      if (monthly < 20) return null
+      const from = graph.components.find((c) => c.id === worst.edge.from)
+      const to = graph.components.find((c) => c.id === worst.edge.to)
+      return v({
+        ruleId: "cost.cross-vendor-egress",
+        topicIds: ["cost.egress", "cost.unit-economics", "org.build-vs-buy"],
+        severity: "warn",
+        title: `${from?.label ?? worst.edge.from} → ${to?.label ?? worst.edge.to} leaves the provider and costs about $${monthly}/month`,
+        explanation: `That link carries roughly ${Math.round(worst.rps)} rps across a provider boundary. Egress is charged on the way out and is the line item that quietly makes cross-cloud designs expensive — you pay it continuously, it scales with traffic rather than with data stored, and it never appears in the sticker price of either service.`,
+        componentIds: [worst.edge.from, worst.edge.to],
+        remediationHint:
+          "Keep chatty, high-volume links inside one provider and let the boundaries sit where traffic is low. If the split is deliberate, make sure somebody has priced it at your projected volume rather than today's.",
+      })
+    },
+  },
+  {
+    id: "org.vendor-concentration",
+    category: "operability",
+    check: ({ graph, scenario }) => {
+      const owned = graph.components.filter((c) => {
+        const spec = CATALOGUE[c.kind]
+        return spec && !spec.clientSide && spec.vendors.length > 0
+      })
+      if (owned.length < 4) return null
+      const families = new Set(
+        owned
+          .map((c) => vendorFamily(c))
+          .filter((f): f is NonNullable<typeof f> => Boolean(f)),
+      )
+      if (families.size !== 1) return null
+      const only = [...families][0]!
+      if (only === "self-hosted") return null
+      // Only worth raising once the thing is big enough that an exit would be a
+      // project rather than an afternoon.
+      const peak = scenario.loadProfiles[scenario.loadProfiles.length - 1]
+      if (!peak || peak.peakRps < 500) return null
+      return v({
+        ruleId: "org.vendor-concentration",
+        topicIds: [
+          "org.build-vs-buy",
+          "reliability.failure-domains",
+          "cost.unit-economics",
+        ],
+        severity: "info",
+        title: `Everything here is ${VENDOR_FAMILY_LABELS[only]}`,
+        explanation:
+          "Worth naming rather than fixing. One provider means one bill, one set of expertise, one support relationship and a genuinely simpler system — which is usually the right call and is why almost everyone does it. What it also means is a correlated failure domain and a negotiating position that weakens as you grow. The answer is rarely a second cloud: it is usually multi-region within this one, plus knowing what an exit would actually take.",
+        componentIds: [],
+        remediationHint:
+          "Ask what breaks if this provider has a bad day, and how long a migration would take if the contract turned hostile. If neither answer is known, that is the gap — not the single vendor.",
+      })
+    },
+  },
+  {
+    id: "operability.multi-vendor-complexity",
+    category: "operability",
+    check: ({ graph }) => {
+      const owned = graph.components.filter((c) => {
+        const spec = CATALOGUE[c.kind]
+        return spec && !spec.clientSide && vendorFamily(c)
+      })
+      const families = new Set(
+        owned
+          .map((c) => vendorFamily(c))
+          .filter((f): f is NonNullable<typeof f> => Boolean(f)),
+      )
+      // Two is normal -- a CDN or a payment provider is nearly always separate.
+      // Three or more infrastructure providers is a different proposition.
+      const infra = new Set([...families].filter((f) => f !== "independent"))
+      if (infra.size < 3) return null
+      return v({
+        ruleId: "operability.multi-vendor-complexity",
+        topicIds: [
+          "org.build-vs-buy",
+          "org.team-topologies",
+          "observability.metrics-logs-traces",
+        ],
+        severity: "warn",
+        title: `Infrastructure spread across ${infra.size} providers`,
+        explanation: `${[...infra].map((f) => VENDOR_FAMILY_LABELS[f]).join(", ")}. Each one is a separate IAM model, a separate networking model, a separate billing console, a separate outage page and a separate body of expertise your team has to keep current. The glue between them is code nobody owns and nothing monitors, and it fails in ways that neither provider's status page will explain.`,
+        componentIds: [],
+        remediationHint:
+          "Spreading across providers protects against a vendor failing and exposes you to the far more likely failure of the integration between them. Unless a specific service is genuinely irreplaceable, consolidating is usually the more reliable choice as well as the cheaper one.",
+      })
+    },
+  },
+  {
+    id: "operability.self-hosted-burden",
+    category: "operability",
+    check: ({ graph }) => {
+      const selfHosted = graph.components.filter(
+        (c) => vendorFamily(c) === "self-hosted" && CATALOGUE[c.kind]?.stateful,
+      )
+      if (selfHosted.length === 0) return null
+      return v({
+        ruleId: "operability.self-hosted-burden",
+        topicIds: [
+          "org.build-vs-buy",
+          "replication.failover",
+          "observability.metrics-logs-traces",
+        ],
+        severity: "warn",
+        title: `You are now operating ${selfHosted.map((c) => c.label).join(", ")}`,
+        explanation:
+          "Running stateful infrastructure yourself is cheaper per instance and more expensive per engineer. Backups, restore drills, version upgrades, failover, patching and 3am recovery all become your team's job, and the failure that matters is the one at 3am on a Sunday when the person who set it up has left.",
+        componentIds: selfHosted.map((c) => c.id),
+        remediationHint:
+          "Defensible at scale, or where a managed option genuinely does not fit. Price it against an engineer's time rather than against the managed service's invoice, and make sure a restore has actually been rehearsed.",
+      })
     },
   },
   {

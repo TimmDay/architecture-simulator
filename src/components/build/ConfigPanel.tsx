@@ -52,6 +52,24 @@ export function ConfigPanel({ component, onChange, onDelete }: Props) {
         className="border-line bg-ink text-chalk focus:border-accent mb-2 w-full rounded border px-2 py-1.5 text-[13px] outline-none"
       />
 
+      {spec.vendors.length > 0 && (
+        <label className="mb-2 block">
+          <span className="text-fog mb-1 block text-[11px]">Vendor</span>
+          <select
+            value={cfg.vendor ?? ""}
+            onChange={(e) => set({ vendor: e.target.value || undefined })}
+            className="border-line bg-ink text-chalk focus:border-accent w-full rounded border px-2 py-1.5 text-[12px] outline-none"
+          >
+            <option value="">Not decided</option>
+            {spec.vendors.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
       <div className="divide-line divide-y">
         {/* A browser app has no instance count and no zone to sit in -- it runs
             wherever the user is. Offering those controls invites nonsense. */}

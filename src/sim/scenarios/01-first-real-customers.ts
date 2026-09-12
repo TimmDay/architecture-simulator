@@ -142,7 +142,7 @@ export const firstRealCustomersReference: ArchitectureGraph = {
       label: "Public load balancer",
       instances: 1,
       region: "eu-west-1",
-      config: { availabilityZones: 2 },
+      config: { vendor: "alb", availabilityZones: 2 },
     },
     {
       id: "app",
@@ -153,6 +153,7 @@ export const firstRealCustomersReference: ArchitectureGraph = {
       instances: 4,
       region: "eu-west-1",
       config: {
+        vendor: "ecs",
         availabilityZones: 2,
         // Stateless via signed tokens. This is the ONLY answer to session
         // affinity that fits: a shared cache on the critical path either lowers
@@ -167,6 +168,7 @@ export const firstRealCustomersReference: ArchitectureGraph = {
       instances: 1,
       region: "eu-west-1",
       config: {
+        vendor: "rds",
         availabilityZones: 1,
         consistency: "strong",
         // Durability requirement is met by backups, NOT by a replica. A replica

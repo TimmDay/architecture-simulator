@@ -117,7 +117,17 @@ export const frontPageReference: ArchitectureGraph = {
       label: "CDN",
       instances: 1,
       region: "global",
-      config: { availabilityZones: 2, ttlSeconds: 300 },
+      config: {
+        // CloudFront rather than Cloudflare, deliberately: origin fetches stay
+        // inside AWS and pay no egress. Cloudflare in front of AWS is the more
+        // popular pairing and works fine -- it just adds a bill for every byte
+        // the cache misses, which at this hit rate is about $80/month. That
+        // trade is available to the player; the reference simply takes the
+        // cheaper side of it.
+        vendor: "cloudfront",
+        availabilityZones: 2,
+        ttlSeconds: 300,
+      },
     },
     {
       id: "lb",
@@ -125,7 +135,7 @@ export const frontPageReference: ArchitectureGraph = {
       label: "Load balancer",
       instances: 1,
       region: "eu-west-1",
-      config: { availabilityZones: 2 },
+      config: { vendor: "alb", availabilityZones: 2 },
     },
     {
       id: "app",
@@ -133,7 +143,7 @@ export const frontPageReference: ArchitectureGraph = {
       label: "Recipe app",
       instances: 3,
       region: "eu-west-1",
-      config: { availabilityZones: 2, sessionStore: "none" },
+      config: { vendor: "ecs", availabilityZones: 2, sessionStore: "none" },
     },
     {
       id: "cache",
@@ -141,7 +151,7 @@ export const frontPageReference: ArchitectureGraph = {
       label: "Page cache",
       instances: 2,
       region: "eu-west-1",
-      config: { availabilityZones: 2, ttlSeconds: 120 },
+      config: { vendor: "elasticache", availabilityZones: 2, ttlSeconds: 120 },
     },
     {
       id: "db",
@@ -150,6 +160,7 @@ export const frontPageReference: ArchitectureGraph = {
       instances: 1,
       region: "eu-west-1",
       config: {
+        vendor: "rds",
         availabilityZones: 1,
         consistency: "strong",
         // Availability comes from the standby, durability from the backups.

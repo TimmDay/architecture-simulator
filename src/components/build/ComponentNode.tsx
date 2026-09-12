@@ -16,6 +16,7 @@ import {
   Server,
   Zap,
 } from "lucide-react"
+import { vendorLabel } from "~/sim/simulate"
 import type {
   ComponentKind,
   ComponentMetrics,
@@ -68,6 +69,7 @@ export function ComponentNode({
   const { component, metrics, dead } = data
   const Icon = ICONS[component.kind] ?? Boxes
   const util = metrics?.utilization ?? 0
+  const vendor = vendorLabel(component)
   const hot = Number.isFinite(util) && util >= 0.8
   const over = !Number.isFinite(util) || util >= 1
 
@@ -114,6 +116,11 @@ export function ComponentNode({
             {component.label}
           </span>
         </div>
+        {vendor && (
+          <div className="text-fog/70 mt-0.5 truncate text-[10px]">
+            {vendor}
+          </div>
+        )}
         <div className="text-fog mt-1 flex items-center gap-2 text-[10px]">
           <span>
             ×{component.instances}

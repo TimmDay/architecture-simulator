@@ -46,6 +46,31 @@ export const CLIENT_NODE_ID = "client"
 
 export type ConsistencyMode = "strong" | "quorum" | "eventual"
 
+/**
+ * Who you are buying this from.
+ *
+ * The family is what matters to the engine: traffic crossing between families
+ * leaves one provider's network and enters another's, which costs egress and
+ * adds a real network hop. Two AWS services talking to each other do neither.
+ */
+export type VendorFamily =
+  "aws" | "gcp" | "azure" | "cloudflare" | "self-hosted" | "independent"
+
+export type VendorOption = {
+  id: string
+  label: string
+  family: VendorFamily
+}
+
+export const VENDOR_FAMILY_LABELS: Record<VendorFamily, string> = {
+  aws: "AWS",
+  gcp: "Google Cloud",
+  azure: "Azure",
+  cloudflare: "Cloudflare",
+  "self-hosted": "Self-hosted",
+  independent: "Independent",
+}
+
 export type FailureModeId =
   | "process-crash"
   | "disk-failure"
@@ -132,6 +157,8 @@ export type ComponentSpec = {
    * fallbacks, which `resilience.third-party-on-sync-path` makes instead.
    */
   canAddRedundancy: boolean
+  /** Real products that fill this role. Empty where the question is meaningless. */
+  vendors: VendorOption[]
   /**
    * Serves what it has and passes only its misses onward. True for a CDN as
    * much as for an in-memory cache -- the difference between them is where they
@@ -194,6 +221,8 @@ export type PlacedComponent = {
      * is precisely why it is a decision rather than a default.
      */
     standby?: boolean
+    /** Which product, by `VendorOption.id`. */
+    vendor?: string
     /** A dead-letter queue, so one bad message cannot block the whole line. */
     deadLetterQueue?: boolean
     /** Requests carry an idempotency key, so a retry cannot double-charge. */

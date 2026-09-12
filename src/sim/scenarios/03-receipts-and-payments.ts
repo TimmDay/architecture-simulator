@@ -151,7 +151,7 @@ export const receiptsAndPaymentsReference: ArchitectureGraph = {
       label: "Load balancer",
       instances: 1,
       region: "eu-west-1",
-      config: { availabilityZones: 2, rateLimitRps: 50 },
+      config: { vendor: "alb", availabilityZones: 2, rateLimitRps: 50 },
     },
     {
       id: "app",
@@ -160,6 +160,7 @@ export const receiptsAndPaymentsReference: ArchitectureGraph = {
       instances: 6,
       region: "eu-west-1",
       config: {
+        vendor: "ecs",
         availabilityZones: 2,
         sessionStore: "none",
         authRequired: true,
@@ -173,7 +174,7 @@ export const receiptsAndPaymentsReference: ArchitectureGraph = {
       label: "Payment provider",
       instances: 1,
       region: "external",
-      config: { availabilityZones: 1 },
+      config: { vendor: "stripe", availabilityZones: 1 },
     },
     {
       id: "pay-queue",
@@ -181,7 +182,7 @@ export const receiptsAndPaymentsReference: ArchitectureGraph = {
       label: "Payment queue",
       instances: 1,
       region: "eu-west-1",
-      config: { availabilityZones: 2, deadLetterQueue: true },
+      config: { vendor: "sqs", availabilityZones: 2, deadLetterQueue: true },
     },
     {
       id: "pay-worker",
@@ -189,7 +190,7 @@ export const receiptsAndPaymentsReference: ArchitectureGraph = {
       label: "Payment workers",
       instances: 2,
       region: "eu-west-1",
-      config: { availabilityZones: 2, idempotencyKeys: true },
+      config: { vendor: "ecs", availabilityZones: 2, idempotencyKeys: true },
     },
     {
       id: "receipts",
@@ -197,7 +198,7 @@ export const receiptsAndPaymentsReference: ArchitectureGraph = {
       label: "Receipt images",
       instances: 1,
       region: "eu-west-1",
-      config: { availabilityZones: 2, encryptedAtRest: true },
+      config: { vendor: "s3", availabilityZones: 2, encryptedAtRest: true },
     },
     {
       id: "ocr-queue",
@@ -205,7 +206,7 @@ export const receiptsAndPaymentsReference: ArchitectureGraph = {
       label: "OCR queue",
       instances: 1,
       region: "eu-west-1",
-      config: { availabilityZones: 2, deadLetterQueue: true },
+      config: { vendor: "sqs", availabilityZones: 2, deadLetterQueue: true },
     },
     {
       id: "ocr",
@@ -214,6 +215,7 @@ export const receiptsAndPaymentsReference: ArchitectureGraph = {
       instances: 3,
       region: "eu-west-1",
       config: {
+        vendor: "ecs",
         availabilityZones: 2,
         autoscale: { minInstances: 1, maxInstances: 12 },
       },
@@ -225,6 +227,7 @@ export const receiptsAndPaymentsReference: ArchitectureGraph = {
       instances: 1,
       region: "eu-west-1",
       config: {
+        vendor: "rds",
         availabilityZones: 1,
         consistency: "strong",
         standby: true,

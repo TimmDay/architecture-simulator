@@ -115,6 +115,19 @@ function Workspace({ scenario }: { scenario: Scenario }) {
     [graph, load, scenario],
   )
 
+  /**
+   * Cost is graded at peak, so it is shown at peak. Egress scales with traffic,
+   * which means the figure now moves with the slider -- and a budget readout
+   * that disagrees with the budget you are marked against is worse than one
+   * that does not move at all.
+   */
+  const peakCost = useMemo(() => {
+    const peak = scenario.loadProfiles[scenario.loadProfiles.length - 1]
+    if (!peak) return live.metrics.endToEnd.estimatedMonthlyCostUsd
+    return simulate({ graph, load: peak, faults: [], scenario }).metrics
+      .endToEnd.estimatedMonthlyCostUsd
+  }, [graph, scenario, live])
+
   const deadIds = useMemo(() => {
     if (!result) return new Set<string>()
     const failing = result.rounds.find((r) => !r.survived)
@@ -229,6 +242,11 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           // zone would flag every cloud load balancer as a single point of
           // failure, which is wrong and trains the wrong instinct.
           availabilityZones: spec.managed ? 2 : 1,
+          // Default to the first option rather than "not decided". Almost every
+          // team really does start on one provider, so the default build is
+          // single-vendor and the concentration conversation arrives on its own
+          // once the system is big enough for it to matter.
+          vendor: spec.vendors[0]?.id,
           ...(kind === "app-server"
             ? { sessionStore: "in-memory" as const }
             : {}),
@@ -520,12 +538,9 @@ function Workspace({ scenario }: { scenario: Scenario }) {
               }
             />
             <Metric
-              label="cost"
-              value={`$${Math.round(e2e.estimatedMonthlyCostUsd)}`}
-              bad={
-                e2e.estimatedMonthlyCostUsd >
-                scenario.requirements.monthlyBudgetUsd
-              }
+              label="cost/mo at peak"
+              value={`$${Math.round(peakCost)}`}
+              bad={peakCost > scenario.requirements.monthlyBudgetUsd}
             />
           </div>
 

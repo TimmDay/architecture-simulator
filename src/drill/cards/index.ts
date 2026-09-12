@@ -6,6 +6,7 @@ import { scalingCachingCards } from "./scaling-caching"
 import { dataAndCostCards } from "./data-and-cost"
 import { frontendAndApiCards } from "./frontend-and-api"
 import { observabilityCards } from "./observability"
+import { vendorCards } from "./vendors"
 
 /**
  * The deck.
@@ -23,6 +24,7 @@ export const ALL_CARDS: Card[] = [
   ...dataAndCostCards,
   ...frontendAndApiCards,
   ...observabilityCards,
+  ...vendorCards,
 ]
 
 const seen = new Set<string>()

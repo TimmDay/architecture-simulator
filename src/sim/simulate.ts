@@ -3,6 +3,7 @@ import type {
   ArchitectureGraph,
   ComponentKind,
   ComponentSpec,
+  VendorFamily,
   ComponentMetrics,
   Edge,
   FaultEvent,
@@ -147,9 +148,12 @@ export function propagate(
   partitionedEdgeIds: Set<string>,
   flushedCacheIds: Set<string> = new Set(),
   trafficMultiplier = 1,
-): Map<string, Flow> {
+): { nodes: Map<string, Flow>; edges: Map<string, Flow> } {
   const byId = new Map(components.map((c) => [c.id, c]))
   const flows = new Map<string, Flow>()
+  // Per-edge flow as well as per-node: egress is billed on what crosses a
+  // particular link, not on what a component handled in total.
+  const edgeFlows = new Map<string, Flow>()
   for (const c of components) flows.set(c.id, { reads: 0, writes: 0 })
 
   const offeredRps = load.peakRps * trafficMultiplier
@@ -216,8 +220,14 @@ export function propagate(
         reads = carries === "writes" ? 0 : flow.reads * f
         writes = carries === "reads" ? 0 : flow.writes * f
       }
-      if (reads > 0 || writes > 0)
+      if (reads > 0 || writes > 0) {
+        const prev = edgeFlows.get(e.id) ?? { reads: 0, writes: 0 }
+        edgeFlows.set(e.id, {
+          reads: prev.reads + reads,
+          writes: prev.writes + writes,
+        })
         out.push({ id: e.to, flow: { reads, writes } })
+      }
     }
     return out
   }
@@ -260,7 +270,7 @@ export function propagate(
     queue.push(...distribute(id, outFlow))
   }
 
-  return flows
+  return { nodes: flows, edges: edgeFlows }
 }
 
 /**
@@ -355,6 +365,7 @@ function criticalPath(
   edges: Edge[],
   perComponent: Record<string, ComponentMetrics>,
   partitionedEdgeIds: Set<string>,
+  graph: ArchitectureGraph,
 ): { p50Ms: number; p99Ms: number } {
   const live = edges.filter(
     (e) => !partitionedEdgeIds.has(e.id) && e.kind === "sync-request",
@@ -374,7 +385,16 @@ function criticalPath(
       : acc
     if (here.p99Ms > best.p99Ms) best = here
     for (const e of live.filter((e) => e.from === id)) {
-      if (ids.has(e.to)) walk(e.to, here, depth + 1)
+      if (!ids.has(e.to)) continue
+      // Leaving one provider's network for another is a real hop over the
+      // public internet, not a link inside a datacentre.
+      const hop = crossesVendors(graph, e)
+        ? {
+            p50Ms: here.p50Ms + CROSS_VENDOR_LATENCY_MS.p50,
+            p99Ms: here.p99Ms + CROSS_VENDOR_LATENCY_MS.p99,
+          }
+        : here
+      walk(e.to, hop, depth + 1)
     }
   }
 
@@ -453,6 +473,61 @@ export function isOptionalOnPath(
   return spec.optionalOnPath
 }
 
+/**
+ * Which provider family a component is bought from, if one has been chosen.
+ */
+export function vendorFamily(c: PlacedComponent): VendorFamily | undefined {
+  const spec = CATALOGUE[c.kind]
+  if (!spec) return undefined
+  return spec.vendors.find((v) => v.id === c.config.vendor)?.family
+}
+
+export function vendorLabel(c: PlacedComponent): string | undefined {
+  const spec = CATALOGUE[c.kind]
+  return spec?.vendors.find((v) => v.id === c.config.vendor)?.label
+}
+
+/** Does this link leave one provider's network and enter another's? */
+export function crossesVendors(graph: ArchitectureGraph, edge: Edge): boolean {
+  const from = graph.components.find((c) => c.id === edge.from)
+  const to = graph.components.find((c) => c.id === edge.to)
+  if (!from || !to) return false
+  const a = vendorFamily(from)
+  const b = vendorFamily(to)
+  // Unspecified on either side means the question has not been answered yet;
+  // guessing would invent a cost the player never chose.
+  if (!a || !b) return false
+  return a !== b
+}
+
+/**
+ * Monthly egress for one request per second sustained across a provider
+ * boundary.
+ *
+ * Assumes roughly a 3KB average payload at about $0.09/GB, which is the going
+ * rate for leaving a major cloud. 100 rps crossing a boundary therefore costs
+ * around $70/month -- enough to notice on a hot path, not enough to make every
+ * cross-vendor design instantly absurd, which matches reality.
+ */
+export const EGRESS_USD_PER_RPS_MONTH = 0.7
+
+/** Extra network latency for a hop that leaves one provider for another. */
+export const CROSS_VENDOR_LATENCY_MS = { p50: 8, p99: 35 }
+
+export function egressCost(
+  graph: ArchitectureGraph,
+  edgeFlows: Map<string, Flow>,
+): number {
+  let total = 0
+  for (const e of graph.edges) {
+    if (!crossesVendors(graph, e)) continue
+    const f = edgeFlows.get(e.id)
+    if (!f) continue
+    total += (f.reads + f.writes) * EGRESS_USD_PER_RPS_MONTH
+  }
+  return total
+}
+
 export function monthlyCost(graph: ArchitectureGraph): number {
   return graph.components.reduce((sum, c) => {
     const spec = CATALOGUE[c.kind]
@@ -487,7 +562,7 @@ export function simulate(input: SimulateInput): SimulationResult {
   const { graph, load, faults, scenario } = input
   const { components, partitionedEdgeIds, flushedCacheIds, trafficMultiplier } =
     applyFaults(graph, faults)
-  const flows = propagate(
+  const { nodes: flows, edges: edgeFlows } = propagate(
     components,
     graph.edges,
     load,
@@ -510,6 +585,7 @@ export function simulate(input: SimulateInput): SimulationResult {
     graph.edges,
     perComponent,
     partitionedEdgeIds,
+    graph,
   )
 
   const offered = load.peakRps * trafficMultiplier
@@ -532,7 +608,8 @@ export function simulate(input: SimulateInput): SimulationResult {
         p99Ms: path.p99Ms,
         topologyAvailability: topologyAvailability(components, graph.edges),
         errorRate,
-        estimatedMonthlyCostUsd: monthlyCost(graph),
+        estimatedMonthlyCostUsd:
+          monthlyCost(graph) + egressCost(graph, edgeFlows),
         staleReadWindowMs: staleReadWindowMs(graph),
       },
     },

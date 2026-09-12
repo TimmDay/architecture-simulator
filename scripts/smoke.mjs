@@ -130,6 +130,41 @@ if (layers !== 3) errs.push(`instance stack drew ${layers} cards, expected 3`)
 await page.mouse.click(1000, 800)
 await page.waitForTimeout(300)
 
+// Moving a component to another provider must show up as egress, immediately.
+await page.evaluate(() => {
+  const n = [...document.querySelectorAll(".react-flow__node")][3]
+  const r = n.getBoundingClientRect()
+  n.dispatchEvent(
+    new MouseEvent("click", {
+      bubbles: true,
+      clientX: r.x + 20,
+      clientY: r.y + 14,
+    }),
+  )
+})
+await page.waitForTimeout(400)
+const costOf = () =>
+  page.evaluate(
+    () =>
+      +(
+        document.body.innerText.match(/cost\/mo at peak\s+\$([\d,]+)/)?.[1] ??
+        "0"
+      ).replace(/,/g, ""),
+  )
+const sameVendor = await costOf()
+await page
+  .selectOption("aside select", { label: "Google Cloud SQL" })
+  .catch(() => {})
+await page.waitForTimeout(500)
+const crossVendor = await costOf()
+console.log(
+  `cost all one provider: $${sameVendor} -> database elsewhere: $${crossVendor}`,
+)
+if (crossVendor <= sameVendor)
+  errs.push("moving a component across providers added no egress cost")
+await page.mouse.click(700, 820)
+await page.waitForTimeout(300)
+
 // Selecting a line must open its config panel.
 await page.mouse.click(
   ...(await page.evaluate(() => {
