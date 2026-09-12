@@ -26,6 +26,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: false,
     managed: true,
     optionalOnPath: false,
+    routesTraffic: true,
     costPerInstanceHourUsd: 0.025, // ~$18/mo
     failureModes: ["az-loss", "region-loss"],
     supports: { replicas: false },
@@ -41,6 +42,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: false,
     managed: false,
     optionalOnPath: false,
+    routesTraffic: false,
     costPerInstanceHourUsd: 0.04, // ~$29/mo
     failureModes: ["process-crash", "az-loss", "connection-exhaustion"],
     supports: { replicas: false, autoscale: true, sessionStore: true },
@@ -57,6 +59,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: true,
     managed: false,
     optionalOnPath: false,
+    routesTraffic: false,
     costPerInstanceHourUsd: 0.17, // ~$124/mo
     failureModes: ["disk-failure", "az-loss", "connection-exhaustion"],
     supports: {
@@ -78,6 +81,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: true,
     managed: false,
     optionalOnPath: true,
+    routesTraffic: false,
     costPerInstanceHourUsd: 0.17, // ~$124/mo
     failureModes: ["disk-failure", "az-loss", "replication-stall"],
     supports: {
@@ -97,6 +101,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: false,
     managed: false,
     optionalOnPath: true,
+    routesTraffic: false,
     costPerInstanceHourUsd: 0.03, // ~$22/mo
     failureModes: ["process-crash", "az-loss", "cache-eviction-storm"],
     supports: {
@@ -116,6 +121,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: false,
     managed: true,
     optionalOnPath: true,
+    routesTraffic: true,
     costPerInstanceHourUsd: 0.015, // ~$11/mo at this scale
     failureModes: [],
     supports: { replicas: false, consistencyModes: ["eventual"] },

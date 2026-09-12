@@ -125,11 +125,50 @@ export function propagate(
       e.kind !== "cdc",
   )
 
-  // Seed from the client's outgoing edges.
-  const queue: { id: string; flow: Flow }[] = []
-  for (const e of live.filter((e) => e.from === CLIENT_NODE_ID)) {
-    queue.push({ id: e.to, flow: { reads: totalReads, writes: totalWrites } })
+  /**
+   * Split one component's outgoing flow across its edges.
+   *
+   * Routers divide; callers duplicate. Reads and writes are divided separately,
+   * because an edge that only carries reads must not absorb a share of the
+   * writes -- otherwise sending writes to the primary and reads to a replica
+   * would silently lose half the write traffic.
+   */
+  function distribute(
+    sourceId: string,
+    flow: Flow,
+  ): { id: string; flow: Flow }[] {
+    const outgoing = live.filter((e) => e.from === sourceId)
+    if (outgoing.length === 0) return []
+
+    const source = byId.get(sourceId)
+    const spec = source ? CATALOGUE[source.kind] : undefined
+    // The implicit client node has no spec; it divides its users between
+    // whatever entry points exist rather than cloning them.
+    const routes = spec ? spec.routesTraffic : true
+
+    const readEdges = outgoing.filter((e) => (e.carries ?? "all") !== "writes")
+    const writeEdges = outgoing.filter((e) => (e.carries ?? "all") !== "reads")
+    const readDiv = routes && readEdges.length > 0 ? readEdges.length : 1
+    const writeDiv = routes && writeEdges.length > 0 ? writeEdges.length : 1
+
+    const out: { id: string; flow: Flow }[] = []
+    for (const e of outgoing) {
+      const carries = e.carries ?? "all"
+      // A router passes traffic through; it does not multiply it, so `fanout`
+      // only applies to callers.
+      const fanout = routes ? 1 : (e.fanout ?? 1)
+      const reads = carries === "writes" ? 0 : (flow.reads / readDiv) * fanout
+      const writes = carries === "reads" ? 0 : (flow.writes / writeDiv) * fanout
+      if (reads > 0 || writes > 0)
+        out.push({ id: e.to, flow: { reads, writes } })
+    }
+    return out
   }
+
+  const queue: { id: string; flow: Flow }[] = distribute(CLIENT_NODE_ID, {
+    reads: totalReads,
+    writes: totalWrites,
+  })
 
   const guard = new Map<string, number>()
   while (queue.length > 0) {
@@ -149,22 +188,16 @@ export function propagate(
     acc.reads += flow.reads
     acc.writes += flow.writes
 
-    // What leaves this component.
-    let outReads = flow.reads
-    const outWrites = flow.writes
+    let outFlow = flow
     if (component.kind === "cache") {
       // Sequential fallback: only misses continue downstream.
-      outReads = flow.reads * (1 - cacheHitRatio(component, load))
+      outFlow = {
+        reads: flow.reads * (1 - cacheHitRatio(component, load)),
+        writes: flow.writes,
+      }
     }
 
-    for (const e of live.filter((e) => e.from === id)) {
-      const fanout = e.fanout ?? 1
-      const carries = e.carries ?? "all"
-      const reads = carries === "writes" ? 0 : outReads * fanout
-      const writes = carries === "reads" ? 0 : outWrites * fanout
-      if (reads > 0 || writes > 0)
-        queue.push({ id: e.to, flow: { reads, writes } })
-    }
+    queue.push(...distribute(id, outFlow))
   }
 
   return flows

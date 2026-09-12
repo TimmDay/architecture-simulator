@@ -96,6 +96,19 @@ export type ComponentSpec = {
    * calculation treats it as required.
    */
   optionalOnPath: boolean
+  /**
+   * Does this component ROUTE traffic or CALL onward?
+   *
+   * A router (load balancer, gateway, CDN) divides what arrives between its
+   * outgoing edges -- 400 rps into two app servers is 200 each. A caller (an app
+   * server talking to a database and a cache) makes each of those calls per
+   * inbound request, so every outgoing edge carries the full flow, times its
+   * `fanout`.
+   *
+   * Getting this wrong makes a load balancer manufacture traffic out of nothing,
+   * which quietly invalidates every capacity number downstream of it.
+   */
+  routesTraffic: boolean
   costPerInstanceHourUsd: number
   failureModes: FailureModeId[]
   supports: {

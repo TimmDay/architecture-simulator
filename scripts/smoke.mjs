@@ -91,6 +91,49 @@ console.log(
   ),
 )
 await page.screenshot({ path: SHOT + "build-results.png" })
+// Fan-out: a router must divide traffic, not clone it.
+await drop("App server", 760, 620)
+await connect(1, 4)
+const split = await page.evaluate(() =>
+  [...document.querySelectorAll(".react-flow__node")]
+    .map((n) => n.textContent ?? "")
+    .filter((t) => t.includes("utilised")),
+)
+console.log("utilisation after fanning the LB to a second app server:")
+split.forEach((t) => console.log("   ", t.replace(/\s+/g, " ").slice(0, 46)))
+
+// Selecting a line must open its config panel.
+await page.mouse.click(
+  ...(await page.evaluate(() => {
+    const e = [...document.querySelectorAll(".react-flow__edge")].at(-1)
+    const p = e.querySelector(".react-flow__edge-interaction")
+    const q = p.getPointAtLength(p.getTotalLength() / 2)
+    const m = p.getScreenCTM()
+    return [q.x * m.a + q.y * m.c + m.e, q.x * m.b + q.y * m.d + m.f]
+  })),
+)
+await page.waitForTimeout(500)
+const railText = await page.evaluate(
+  () => document.querySelectorAll("aside")[1]?.innerText ?? "",
+)
+console.log(
+  "line click opens connection panel:",
+  railText.includes("CONNECTION"),
+)
+if (!railText.includes("CONNECTION"))
+  errs.push("clicking an edge did not open the edge panel")
+
+// Reset must clear the board back to the traffic source alone.
+await page.getByRole("button", { name: /Reset scenario/i }).click()
+await page.waitForTimeout(500)
+const after = await page.evaluate(() => ({
+  nodes: document.querySelectorAll(".react-flow__node").length,
+  edges: document.querySelectorAll(".react-flow__edge").length,
+}))
+console.log("after reset:", JSON.stringify(after))
+if (after.nodes !== 1 || after.edges !== 0)
+  errs.push("reset did not clear the board")
+
 console.log("errors:", errs.length ? errs.join("\n ") : "(none)")
 await browser.close()
 if (errs.length) process.exit(1)

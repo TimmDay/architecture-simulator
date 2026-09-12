@@ -34,6 +34,7 @@ import { ClientNode, type ClientNodeType } from "./ClientNode"
 import { Palette } from "./Palette"
 import { ConfigPanel } from "./ConfigPanel"
 import { ResultsPanel } from "./ResultsPanel"
+import { EdgePanel, type EdgeConfig } from "./EdgePanel"
 
 const nodeTypes = { component: ComponentNode, client: ClientNode }
 
@@ -43,7 +44,7 @@ const nextId = (kind: string) => `${kind}-${++seq}`
 /** Default edge semantics by target kind, so the common case needs no fiddling. */
 function defaultCarries(
   targetKind: ComponentKind | "client",
-): SimEdge["carries"] {
+): EdgeConfig["carries"] {
   if (
     targetKind === "sql-replica" ||
     targetKind === "cdn" ||
@@ -67,6 +68,7 @@ function Workspace({ scenario }: { scenario: Scenario }) {
   ])
   const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [profileIndex, setProfileIndex] = useState(0)
   const [result, setResult] = useState<AttemptResult | null>(null)
   const [enqueued, setEnqueued] = useState(false)
@@ -82,18 +84,14 @@ function Workspace({ scenario }: { scenario: Scenario }) {
         .filter((n): n is ComponentNodeType => n.type === "component")
         .map((n) => n.data.component),
       edges: edges.map((e): SimEdge => {
-        const target = nodes.find((n) => n.id === e.target)
-        const kind =
-          target?.type === "component"
-            ? target.data.component.kind
-            : ("client" as const)
+        const cfg = (e.data ?? {}) as Partial<EdgeConfig>
         return {
           id: e.id,
           from: e.source,
           to: e.target,
           kind: "sync-request",
-          carries:
-            (e.data?.carries as SimEdge["carries"]) ?? defaultCarries(kind),
+          carries: cfg.carries ?? "all",
+          fanout: cfg.fanout ?? 1,
           timeoutMs: 2000,
           retries: 2,
           jitter: true,
@@ -139,10 +137,65 @@ function Workspace({ scenario }: { scenario: Scenario }) {
     [nodes, live, deadIds, load],
   )
 
-  const onConnect = useCallback(
-    (c: Connection) =>
-      setEdges((eds) => addEdge({ ...c, animated: true }, eds)),
+  /** Label edges that do something non-obvious, so the picture is self-explaining. */
+  const decoratedEdges = useMemo(
+    () =>
+      edges.map((e) => {
+        const cfg = (e.data ?? {}) as Partial<EdgeConfig>
+        const bits: string[] = []
+        if (cfg.carries && cfg.carries !== "all") bits.push(cfg.carries)
+        if ((cfg.fanout ?? 1) > 1) bits.push(`×${cfg.fanout}`)
+        return {
+          ...e,
+          label: bits.join(" "),
+          labelStyle: { fill: "#8a94a8", fontSize: 10 },
+          labelBgStyle: { fill: "#131822" },
+          selected: e.id === selectedEdgeId,
+        }
+      }),
+    [edges, selectedEdgeId],
+  )
+
+  const updateEdge = useCallback(
+    (id: string, next: EdgeConfig) => {
+      setEdges((eds) =>
+        eds.map((e) => (e.id === id ? { ...e, data: next } : e)),
+      )
+    },
     [setEdges],
+  )
+
+  const deleteEdge = useCallback(
+    (id: string) => {
+      setEdges((eds) => eds.filter((e) => e.id !== id))
+      setSelectedEdgeId(null)
+    },
+    [setEdges],
+  )
+
+  const onConnect = useCallback(
+    (c: Connection) => {
+      const target = nodes.find((n) => n.id === c.target)
+      const kind =
+        target?.type === "component" ? target.data.component.kind : undefined
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...c,
+            animated: true,
+            // Defaulted from what it points at -- a replica or cache takes reads
+            // -- but always overridable, because a mistake you cannot express is
+            // one the engine can never teach you about.
+            data: {
+              carries: kind ? defaultCarries(kind) : "all",
+              fanout: 1,
+            } satisfies EdgeConfig,
+          },
+          eds,
+        ),
+      )
+    },
+    [setEdges, nodes],
   )
 
   const onDrop = useCallback(
@@ -213,6 +266,25 @@ function Workspace({ scenario }: { scenario: Scenario }) {
     },
     [setNodes, setEdges],
   )
+
+  /** Clear the board back to an empty scenario: just the traffic source. */
+  const resetBoard = useCallback(() => {
+    setNodes([
+      {
+        id: CLIENT_NODE_ID,
+        type: "client",
+        position: { x: 20, y: 150 },
+        data: { rps: scenario.loadProfiles[0]?.peakRps ?? 0 },
+        deletable: false,
+      } satisfies ClientNodeType,
+    ])
+    setEdges([])
+    setSelectedId(null)
+    setSelectedEdgeId(null)
+    setResult(null)
+    setEnqueued(false)
+    setProfileIndex(0)
+  }, [setNodes, setEdges, scenario])
 
   const run = useCallback(
     (securityProbe = false) => {
@@ -285,42 +357,63 @@ function Workspace({ scenario }: { scenario: Scenario }) {
   }, [result, scenario])
 
   const selected = nodes.find((n) => n.id === selectedId)
+  const selectedEdge = edges.find((e) => e.id === selectedEdgeId)
+  const labelOf = (id: string) =>
+    id === CLIENT_NODE_ID
+      ? "Users"
+      : ((nodes.find((n) => n.id === id) as ComponentNodeType | undefined)?.data
+          .component.label ?? id)
   const e2e = live.metrics.endToEnd
 
   return (
     <div className="flex h-[calc(100vh-49px)]">
       {/* Left: brief + palette */}
-      <aside className="border-line bg-panel/40 w-72 shrink-0 overflow-y-auto border-r p-4">
-        <h2 className="text-chalk text-sm font-semibold">{scenario.title}</h2>
-        <p className="text-fog mt-2 text-[11px] leading-relaxed whitespace-pre-line">
-          {scenario.brief}
-        </p>
+      {/* Scrolls internally so the reset button can stay pinned to the base
+          rather than hiding below a long brief and a long palette. */}
+      <aside className="border-line bg-panel/40 flex w-80 shrink-0 flex-col border-r">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <h2 className="text-chalk text-base font-semibold">
+            {scenario.title}
+          </h2>
+          <p className="text-chalk/80 mt-2.5 text-[13px] leading-relaxed whitespace-pre-line">
+            {scenario.brief}
+          </p>
 
-        <div className="border-line bg-panel mt-4 rounded-lg border p-3">
-          <h3 className="text-fog mb-2 text-[10px] font-medium tracking-wide uppercase">
-            Must meet
-          </h3>
-          <dl className="space-y-1 text-[11px]">
-            {[
-              ["p99 latency", `≤ ${scenario.requirements.p99Ms}ms`],
-              [
-                "Availability",
-                `≥ ${(scenario.requirements.availability * 100).toFixed(2)}%`,
-              ],
-              ["Budget", `≤ $${scenario.requirements.monthlyBudgetUsd}/mo`],
-              ["Durability", scenario.requirements.durability],
-              ["Consistency", scenario.requirements.consistency],
-            ].map(([k, v]) => (
-              <div key={k} className="flex justify-between">
-                <dt className="text-fog">{k}</dt>
-                <dd className="text-chalk">{v}</dd>
-              </div>
-            ))}
-          </dl>
+          <div className="border-line bg-panel mt-4 rounded-lg border p-3">
+            <h3 className="text-fog mb-2 text-[11px] font-medium tracking-wide uppercase">
+              Must meet
+            </h3>
+            <dl className="space-y-1.5 text-[12px]">
+              {[
+                ["p99 latency", `≤ ${scenario.requirements.p99Ms}ms`],
+                [
+                  "Availability",
+                  `≥ ${(scenario.requirements.availability * 100).toFixed(2)}%`,
+                ],
+                ["Budget", `≤ $${scenario.requirements.monthlyBudgetUsd}/mo`],
+                ["Durability", scenario.requirements.durability],
+                ["Consistency", scenario.requirements.consistency],
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between">
+                  <dt className="text-fog">{k}</dt>
+                  <dd className="text-chalk">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <div className="mt-5">
+            <Palette kinds={scenario.availableKinds} />
+          </div>
         </div>
 
-        <div className="mt-5">
-          <Palette kinds={scenario.availableKinds} />
+        <div className="border-line bg-panel/60 shrink-0 border-t p-3">
+          <button
+            onClick={resetBoard}
+            className="border-line text-fog hover:text-chalk hover:border-fog/50 flex w-full items-center justify-center gap-1.5 rounded-lg border py-2 text-[12px] transition-colors"
+          >
+            <RotateCcw size={12} /> Reset scenario
+          </button>
         </div>
       </aside>
 
@@ -383,7 +476,7 @@ function Workspace({ scenario }: { scenario: Scenario }) {
         <div ref={wrapper} className="min-h-0 flex-1">
           <ReactFlow
             nodes={decoratedNodes}
-            edges={edges}
+            edges={decoratedEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -392,8 +485,18 @@ function Workspace({ scenario }: { scenario: Scenario }) {
               e.preventDefault()
               e.dataTransfer.dropEffect = "move"
             }}
-            onNodeClick={(_, n) => setSelectedId(n.id)}
-            onPaneClick={() => setSelectedId(null)}
+            onNodeClick={(_, n) => {
+              setSelectedId(n.id)
+              setSelectedEdgeId(null)
+            }}
+            onEdgeClick={(_, e) => {
+              setSelectedEdgeId(e.id)
+              setSelectedId(null)
+            }}
+            onPaneClick={() => {
+              setSelectedId(null)
+              setSelectedEdgeId(null)
+            }}
             nodeTypes={nodeTypes}
             fitView
             // Without a cap, fitView on a near-empty canvas zooms the single
@@ -417,6 +520,18 @@ function Workspace({ scenario }: { scenario: Scenario }) {
             onChange={updateComponent}
             onDelete={() => deleteComponent(selected.id)}
           />
+        ) : selectedEdge ? (
+          <EdgePanel
+            from={labelOf(selectedEdge.source)}
+            to={labelOf(selectedEdge.target)}
+            config={{
+              carries:
+                (selectedEdge.data?.carries as EdgeConfig["carries"]) ?? "all",
+              fanout: (selectedEdge.data?.fanout as number) ?? 1,
+            }}
+            onChange={(next) => updateEdge(selectedEdge.id, next)}
+            onDelete={() => deleteEdge(selectedEdge.id)}
+          />
         ) : result ? (
           <>
             <button
@@ -438,9 +553,24 @@ function Workspace({ scenario }: { scenario: Scenario }) {
             </p>
             <ol className="list-decimal space-y-1.5 pl-4">
               <li>Drag components from the left onto the canvas.</li>
-              <li>Drag between the dots on their edges to wire them up.</li>
               <li>
-                Click a component to configure instances, zones and settings.
+                Drag from the dot on one box&apos;s right edge to the dot on
+                another&apos;s left to connect them. One box can feed several —
+                a load balancer across three app servers splits the traffic
+                between them.
+              </li>
+              <li>
+                Click a <strong className="text-chalk">box</strong> to set
+                instances and zones, or a{" "}
+                <strong className="text-chalk">line</strong> to set what it
+                carries.
+              </li>
+              <li>
+                Delete anything by selecting it and pressing{" "}
+                <kbd className="border-line bg-panel-2 rounded border px-1">
+                  Backspace
+                </kbd>
+                .
               </li>
               <li>
                 Move the traffic slider and watch utilization change live.
@@ -448,7 +578,13 @@ function Workspace({ scenario }: { scenario: Scenario }) {
               <li>Run the pressure test when you think it will hold.</li>
             </ol>
             <p className="mt-3">
-              Start from the client node — traffic enters there.
+              Start from the Users node — traffic enters there.
+            </p>
+            <p className="text-fog/60 mt-2 text-[11px] leading-relaxed">
+              Lines are <em>request</em> arrows and the response comes back
+              along them, so you never draw one back the other way. For a
+              database taking reads and writes from one server, a single line
+              carrying both is right.
             </p>
           </div>
         )}
