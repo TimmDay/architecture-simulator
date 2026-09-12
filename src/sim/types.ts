@@ -73,11 +73,15 @@ export type ComponentSpec = {
   stateful: boolean
   durable: boolean
   /**
-   * A managed service bought as one logical unit, where the provider runs the
-   * redundancy internally (a cloud load balancer, a CDN). For these, spreading
-   * across zones does not require you to run more instances -- `baselineAvailability`
-   * already reflects the managed SLA. For unmanaged components, one instance can
-   * only ever occupy one failure domain.
+   * Bought as one logical unit whose redundancy the provider runs for you -- a
+   * cloud load balancer, a CDN. For these, zones stand on their own and
+   * `baselineAvailability` already reflects the managed SLA.
+   *
+   * Deliberately FALSE for managed databases and caches. RDS or ElastiCache are
+   * operated for you, but multi-AZ there is a deliberate choice you make and pay
+   * double for -- a single instance in one zone really is a single point of
+   * failure. Marking them managed would hand out that redundancy free and
+   * dismantle the backups-are-not-replicas lesson this level is built on.
    */
   managed: boolean
   /**

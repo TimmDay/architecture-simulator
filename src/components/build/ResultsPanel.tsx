@@ -18,6 +18,17 @@ const SEVERITY = {
   info: { icon: Info, cls: "text-accent border-accent/30 bg-accent/5" },
 } as const
 
+/**
+ * Why a round broke. A round can fail on latency with a 0% error rate, and
+ * reporting "broke - 0% errors" reads as a contradiction rather than a finding.
+ */
+function failureReason(round: AttemptResult["rounds"][number]): string {
+  const e2e = round.result.metrics.endToEnd
+  if (e2e.errorRate > 0)
+    return `${Math.round(e2e.errorRate * 100)}% of requests failing`
+  return `p99 ${Math.round(e2e.p99Ms)}ms`
+}
+
 export function ResultsPanel({
   result,
   onEnqueueTopics,
@@ -87,9 +98,7 @@ export function ResultsPanel({
               <span
                 className={`text-[11px] ${r.survived ? "text-pass" : "text-fail"}`}
               >
-                {r.survived
-                  ? "held"
-                  : `broke · ${Math.round(r.result.metrics.endToEnd.errorRate * 100)}% errors`}
+                {r.survived ? "held" : `broke · ${failureReason(r)}`}
               </span>
             </div>
           ))}

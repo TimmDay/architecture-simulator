@@ -55,7 +55,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     baselineAvailability: 0.995,
     stateful: true,
     durable: true,
-    managed: true,
+    managed: false,
     optionalOnPath: false,
     costPerInstanceHourUsd: 0.17, // ~$124/mo
     failureModes: ["disk-failure", "az-loss", "connection-exhaustion"],
@@ -76,7 +76,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     baselineAvailability: 0.995,
     stateful: true,
     durable: true,
-    managed: true,
+    managed: false,
     optionalOnPath: true,
     costPerInstanceHourUsd: 0.17, // ~$124/mo
     failureModes: ["disk-failure", "az-loss", "replication-stall"],
@@ -95,7 +95,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     baselineAvailability: 0.995,
     stateful: true,
     durable: false,
-    managed: true,
+    managed: false,
     optionalOnPath: true,
     costPerInstanceHourUsd: 0.03, // ~$22/mo
     failureModes: ["process-crash", "az-loss", "cache-eviction-storm"],

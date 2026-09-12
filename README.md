@@ -27,6 +27,14 @@ in browser local storage.
 pnpm test        # watch mode
 pnpm check       # typecheck + tests, what CI runs
 pnpm build       # production build
+pnpm smoke       # real-browser smoke test (needs `pnpm dev` running in another terminal)
+```
+
+**If a page hangs on "Loading deck…" or the canvas is missing**, the dev cache is
+stale — this happens if dependencies changed while the dev server was running:
+
+```bash
+rm -rf .next && pnpm dev
 ```
 
 ## Where things live

@@ -165,7 +165,10 @@ function Workspace({ scenario }: { scenario: Scenario }) {
         instances: 1,
         region: "eu-west-1",
         config: {
-          availabilityZones: 1,
+          // A managed service is multi-AZ as bought -- defaulting it to a single
+          // zone would flag every cloud load balancer as a single point of
+          // failure, which is wrong and trains the wrong instinct.
+          availabilityZones: spec.managed ? 2 : 1,
           ...(kind === "app-server"
             ? { sessionStore: "in-memory" as const }
             : {}),
@@ -228,6 +231,10 @@ function Workspace({ scenario }: { scenario: Scenario }) {
       const graded = gradeAttempt(graph, probed)
       setResult(graded)
       setEnqueued(false)
+      // Both panels share the right rail, and the config panel wins while
+      // something is selected -- so running the test with a component still
+      // selected would hide the very results you asked for.
+      setSelectedId(null)
       void getProgressStore().saveAttempt({
         id: `${Date.now()}`,
         scenarioId: scenario.id,
@@ -389,6 +396,11 @@ function Workspace({ scenario }: { scenario: Scenario }) {
             onPaneClick={() => setSelectedId(null)}
             nodeTypes={nodeTypes}
             fitView
+            // Without a cap, fitView on a near-empty canvas zooms the single
+            // client node until it fills the screen.
+            fitViewOptions={{ maxZoom: 1, padding: 0.3 }}
+            minZoom={0.3}
+            maxZoom={1.75}
             proOptions={{ hideAttribution: true }}
           >
             <Background color="#273040" gap={18} size={1} />

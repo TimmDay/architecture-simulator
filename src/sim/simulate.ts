@@ -287,6 +287,10 @@ export function topologyAvailability(
   }
   for (const e of live.filter((e) => e.from === CLIENT_NODE_ID)) walk(e.to, 0)
 
+  // An empty or disconnected graph is not 100% available -- it serves nothing.
+  // Without this the empty canvas reads as a perfect score.
+  if (reachable.size === 0) return 0
+
   let availability = 1
   for (const c of components) {
     if (!reachable.has(c.id)) continue
