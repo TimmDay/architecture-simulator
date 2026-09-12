@@ -1,6 +1,7 @@
 import { CATALOGUE, HOURS_PER_MONTH } from "./catalogue"
 import type {
   ArchitectureGraph,
+  ComponentKind,
   ComponentSpec,
   ComponentMetrics,
   Edge,
@@ -203,9 +204,30 @@ export function propagate(
   return flows
 }
 
+/**
+ * Server rendering is work, and the work lands on the app tier.
+ *
+ * Rather than inflating the request COUNT -- which would break conservation and
+ * conflate page views with API calls -- this derates how many requests each app
+ * instance can serve. "SSR is why this tier needs twice the instances" then
+ * shows up as utilization you can point at, rather than as an opaque
+ * coefficient buried in the flow.
+ */
+export const SSR_CAPACITY_FACTOR = 0.5
+
+export function renderingCapacityFactor(
+  graph: ArchitectureGraph,
+  kind: ComponentKind,
+): number {
+  if (kind !== "app-server") return 1
+  const client = graph.components.find((c) => c.kind === "web-client")
+  return client?.config.rendering === "ssr" ? SSR_CAPACITY_FACTOR : 1
+}
+
 function metricsFor(
   component: EffectiveComponent,
   flow: Flow,
+  capacityFactor = 1,
 ): ComponentMetrics {
   const spec = CATALOGUE[component.kind]
   if (!spec) {
@@ -233,8 +255,8 @@ function metricsFor(
     }
   }
 
-  const readCap = spec.capacity.readRps * alive
-  const writeCap = spec.capacity.writeRps * alive
+  const readCap = spec.capacity.readRps * alive * capacityFactor
+  const writeCap = spec.capacity.writeRps * alive * capacityFactor
   const rhoRead =
     readCap === 0 ? (flow.reads > 0 ? Infinity : 0) : flow.reads / readCap
   // writeCap 0 with writes offered means writes were routed somewhere that
@@ -329,6 +351,9 @@ export function topologyAvailability(
     if (!reachable.has(c.id)) continue
     const spec = CATALOGUE[c.kind]
     if (!spec) continue
+    // Not ours to keep up. Counting the user's browser in the serial product
+    // would say that shipping a web app makes the system less reliable.
+    if (spec.clientSide) continue
     if (isOptionalOnPath(c, spec)) continue
     availability *=
       1 - Math.pow(1 - spec.baselineAvailability, failureDomains(c, spec))
@@ -366,9 +391,8 @@ export function isOptionalOnPath(
 export function monthlyCost(graph: ArchitectureGraph): number {
   return graph.components.reduce((sum, c) => {
     const spec = CATALOGUE[c.kind]
-    return spec
-      ? sum + spec.costPerInstanceHourUsd * HOURS_PER_MONTH * c.instances
-      : sum
+    if (!spec || spec.clientSide) return sum
+    return sum + spec.costPerInstanceHourUsd * HOURS_PER_MONTH * c.instances
   }, 0)
 }
 
@@ -402,6 +426,7 @@ export function simulate(input: SimulateInput): SimulationResult {
     perComponent[c.id] = metricsFor(
       c,
       flows.get(c.id) ?? { reads: 0, writes: 0 },
+      renderingCapacityFactor(graph, c.kind),
     )
   }
 

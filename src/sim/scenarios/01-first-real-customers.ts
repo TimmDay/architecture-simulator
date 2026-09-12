@@ -89,11 +89,18 @@ You have $300 a month. Not $3,000. Build something you can defend.`,
   // instance, not the component, so a redundant tier genuinely survives it.
   faultScript: [[{ kind: "node-down", componentId: "app", instances: 1 }]],
 
-  // Decoys are deliberate. sql-replica, cache and cdn are all plausible and all
-  // wrong-by-default here; a palette containing only the right answer asks the
-  // player to make no decision at all.
+  // Decoys are deliberate. sql-replica, cache, cdn and api-gateway are all
+  // plausible and all wrong-by-default here -- a palette containing only the
+  // right answer asks the player to make no decision at all. The gateway is the
+  // sharpest of them: it looks like diligence, and in front of a single service
+  // it is $33/mo for a job nobody has yet.
+  //
+  // web-client is NOT a decoy. Every product has one, and its rendering mode is
+  // a real architectural decision with real consequences for the app tier.
   availableKinds: [
+    "web-client",
     "load-balancer",
+    "api-gateway",
     "app-server",
     "sql-primary",
     "sql-replica",
@@ -102,6 +109,8 @@ You have $300 a month. Not $3,000. Build something you can defend.`,
   ],
 
   topicIds: [
+    "frontend.rendering-strategy",
+    "api.gateway-and-bff",
     "reliability.redundancy",
     "reliability.failure-domains",
     "reliability.slo-sli-error-budget",

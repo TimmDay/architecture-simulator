@@ -22,6 +22,7 @@ export const DOMAINS = {
   messaging: "Messaging",
   styles: "Architecture styles",
   api: "APIs",
+  frontend: "Frontend & delivery",
   reliability: "Reliability",
   observability: "Observability",
   security: "Security",
@@ -214,6 +215,24 @@ export const TOPICS = {
   "api.pagination": { domain: "api", label: "Pagination" },
   "api.gateway-and-bff": { domain: "api", label: "Gateways and BFF" },
   "api.n-plus-one": { domain: "api", label: "N+1 and chatty services" },
+
+  // frontend
+  "frontend.rendering-strategy": {
+    domain: "frontend",
+    label: "Static, SSR and CSR",
+  },
+  "frontend.client-validation": {
+    domain: "frontend",
+    label: "Client-side validation",
+  },
+  "frontend.client-resilience": {
+    domain: "frontend",
+    label: "Client retries and offline",
+  },
+  "frontend.bundle-and-caching": {
+    domain: "frontend",
+    label: "Bundles and cache headers",
+  },
 
   // reliability
   "reliability.slo-sli-error-budget": {

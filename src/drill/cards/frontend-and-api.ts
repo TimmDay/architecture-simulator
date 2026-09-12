@@ -1,0 +1,90 @@
+import type { Card } from "../types"
+
+export const frontendAndApiCards: Card[] = [
+  {
+    id: "rendering-strategies",
+    prompt:
+      "Static, server-rendered and client-rendered: what does each cost you, and what does each buy?",
+    answer:
+      "Static pre-renders at build time: near-zero origin load because a CDN serves it, best first paint, but the content is as old as your last build. SSR renders per request: fresh and indexable, but every page view consumes CPU on a server you pay for, so the app tier needs sizing for it. CSR ships a bundle once and then makes API calls: cheapest origin and the lightest backend, but nothing is visible until the bundle downloads and executes, and a crawler that does not run JavaScript sees an empty page.",
+    emFraming:
+      "The useful reframing for a team argument is that this is a question about where you want to spend: build time, server CPU, or the user's device. Most real apps are a mix per route -- a static marketing page, an SSR product page, a CSR dashboard behind a login -- and insisting on one mode for the whole app is the actual mistake.",
+    topicIds: [
+      "frontend.rendering-strategy",
+      "caching.cdn",
+      "caching.edge-caching",
+    ],
+    tier: 1,
+  },
+  {
+    id: "client-validation",
+    prompt:
+      "A team says moving validation into the browser will reduce load on the API. What is wrong with that, and what is client validation actually for?",
+    answer:
+      "It reduces nothing you can rely on. The browser is an untrusted client -- anyone can open devtools, or skip the page entirely and call the API directly -- so the server has to perform every check regardless, and a malicious or buggy client still costs you the round trip. Client validation is a UX feature: it gives immediate feedback and saves the user a failed submission. It is not a security control and it is not a capacity control.",
+    emFraming:
+      "The general principle is worth having ready in reviews: any check that lives only where the attacker controls the code is not a check. The same reasoning covers hidden form fields, disabled buttons, and 'the UI doesn't let you do that'.",
+    topicIds: [
+      "frontend.client-validation",
+      "security.zero-trust",
+      "security.authn-vs-authz",
+    ],
+    tier: 1,
+  },
+  {
+    id: "client-retry-behaviour",
+    prompt:
+      "Why is 'retry immediately on failure' in a web client more dangerous than the same logic in a server-side job?",
+    answer:
+      "Scale and synchronisation. There may be tens of thousands of browsers, and they all observe the same backend failure at the same instant, so their retries arrive as a synchronised wave rather than a spread. That wave lands precisely when the backend is least able to absorb it, converting a brief blip into a sustained outage. Servers retrying are fewer, usually already rate-limited, and easier to coordinate.",
+    emFraming:
+      "Jitter is the part people drop, and it is the part that does the work -- backoff alone still lets the crowd move in lockstep. Worth asking what your client does on a 503 today; most teams do not know.",
+    topicIds: [
+      "frontend.client-resilience",
+      "reliability.retries-and-jitter",
+      "messaging.backpressure",
+    ],
+    tier: 2,
+  },
+  {
+    id: "gateway-vs-load-balancer",
+    prompt:
+      "What is the difference between a load balancer and an API gateway, and when do you need both?",
+    answer:
+      "A load balancer distributes traffic across instances of one service and removes unhealthy ones from rotation; it knows nothing about your API. A gateway is one front door in front of many services: it routes by path or host, authenticates, enforces per-client rate limits and quotas, and can transform requests. You need both once you have several services behind a single public surface -- the gateway decides which service, the load balancer decides which instance of it. With one service, the gateway is only worth its cost if you specifically want its auth or rate-limiting.",
+    emFraming:
+      "Watch for the gateway becoming a dumping ground for business logic. Once routing rules encode product behaviour, you have a distributed monolith with a config file at its centre and no tests around it.",
+    topicIds: [
+      "api.gateway-and-bff",
+      "load-balancing.l4-vs-l7",
+      "security.rate-limiting",
+    ],
+    tier: 1,
+  },
+  {
+    id: "bff-pattern",
+    prompt:
+      "What problem does a Backend-for-Frontend solve, and what does it cost?",
+    answer:
+      "A shared general-purpose API ends up serving several clients with genuinely different needs -- a web app wants a wide payload in one call, a mobile app wants a small one over a slow network -- and satisfying all of them makes it either chatty or bloated. A BFF gives each client its own tailored aggregation layer, owned by the team that owns that client. It costs you another deployable per client, duplicated logic across BFFs, and one more hop of latency.",
+    emFraming:
+      "This is a Conway's Law decision as much as a technical one: a BFF works when the client team owns it, and becomes a bottleneck the moment a separate backend team is asked to maintain three of them.",
+    topicIds: ["api.gateway-and-bff", "org.conways-law", "api.n-plus-one"],
+    tier: 2,
+  },
+  {
+    id: "bundle-and-cache-headers",
+    prompt:
+      "Why are hashed filenames plus long cache lifetimes the standard way to ship frontend assets?",
+    answer:
+      "They separate the two things you want: assets that never need revalidating, and deploys that take effect immediately. Content-hashed filenames mean a given URL's contents can never change, so it can be cached effectively forever at the CDN and in the browser. The HTML that references them stays uncached or briefly cached, so a deploy simply points at new filenames and every client picks them up on the next page load, with no invalidation to orchestrate.",
+    emFraming:
+      "The failure mode to recognise is caching the HTML aggressively too: users then sit on a stale page referencing assets that still exist, and you get bug reports that reproduce for nobody.",
+    topicIds: [
+      "frontend.bundle-and-caching",
+      "caching.invalidation",
+      "caching.ttl-and-staleness",
+    ],
+    tier: 2,
+  },
+]

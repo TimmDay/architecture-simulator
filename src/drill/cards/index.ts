@@ -4,6 +4,7 @@ import { reliabilityCards } from "./reliability"
 import { messagingCards } from "./messaging"
 import { scalingCachingCards } from "./scaling-caching"
 import { dataAndCostCards } from "./data-and-cost"
+import { frontendAndApiCards } from "./frontend-and-api"
 
 /**
  * The deck.
@@ -19,6 +20,7 @@ export const ALL_CARDS: Card[] = [
   ...messagingCards,
   ...scalingCachingCards,
   ...dataAndCostCards,
+  ...frontendAndApiCards,
 ]
 
 const seen = new Set<string>()

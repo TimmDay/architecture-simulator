@@ -54,6 +54,9 @@ export const RULES: Rule[] = [
       for (const c of graph.components) {
         const spec = CATALOGUE[c.kind]
         if (!spec) continue
+        // A browser app is not yours to make redundant -- there is no second
+        // zone to put the user's laptop in.
+        if (spec.clientSide) continue
         const domains = failureDomains(c, spec)
         const onPath =
           (result.metrics.perComponent[c.id]?.offeredReadRps ?? 0) > 0 ||
@@ -476,6 +479,153 @@ export const RULES: Rule[] = [
         )
       }
       return out
+    },
+  },
+  // --- frontend / API layer -------------------------------------------------
+  {
+    id: "frontend.ssr-on-app-tier",
+    category: "capacity",
+    check: ({ graph }) => {
+      const client = graph.components.find((c) => c.kind === "web-client")
+      if (client?.config.rendering !== "ssr") return null
+      const app = graph.components.find((c) => c.kind === "app-server")
+      if (!app) return null
+      return v({
+        ruleId: "frontend.ssr-on-app-tier",
+        topicIds: [
+          "frontend.rendering-strategy",
+          "scaling.vertical-vs-horizontal",
+          "caching.cdn",
+        ],
+        severity: "warn",
+        title: "Server rendering is running on your app tier",
+        explanation:
+          "Every page view now renders HTML on a server you pay for, so each instance serves roughly half the requests it otherwise would. That is a real cost, and it is the price of having pages that are readable without running JavaScript.",
+        componentIds: [app.id, client.id],
+        remediationHint:
+          "Size the app tier for it, cache rendered pages at a CDN where the content allows, or move to static rendering for the pages that do not need per-user HTML.",
+      })
+    },
+  },
+  {
+    id: "frontend.static-without-cdn",
+    category: "cost",
+    check: ({ graph }) => {
+      const client = graph.components.find((c) => c.kind === "web-client")
+      if (client?.config.rendering !== "static") return null
+      if (graph.components.some((c) => c.kind === "cdn")) return null
+      return v({
+        ruleId: "frontend.static-without-cdn",
+        topicIds: [
+          "frontend.rendering-strategy",
+          "caching.cdn",
+          "caching.edge-caching",
+        ],
+        severity: "warn",
+        title: "Static rendering with nothing caching it",
+        explanation:
+          "Pre-rendering pages buys you the ability to serve them from the edge without touching your origin. With no CDN in the design, every one of those pre-rendered pages is still fetched from your own servers, so you have taken the constraint and none of the benefit.",
+        componentIds: [client.id],
+        remediationHint:
+          "Put a CDN in front of it, or choose a rendering mode that needs the origin anyway.",
+      })
+    },
+  },
+  {
+    id: "frontend.csr-tradeoff",
+    category: "operability",
+    check: ({ graph }) => {
+      const client = graph.components.find((c) => c.kind === "web-client")
+      if (client?.config.rendering !== "csr") return null
+      return v({
+        ruleId: "frontend.csr-tradeoff",
+        topicIds: [
+          "frontend.rendering-strategy",
+          "frontend.bundle-and-caching",
+        ],
+        severity: "info",
+        title:
+          "Client rendering keeps your origin cheap and costs you first paint",
+        explanation:
+          "The bundle is cached once and every page after that is an API call, which is the lightest possible load on your servers. The bill lands on the user's device instead: nothing is visible until the bundle downloads and runs, and a crawler that does not execute JavaScript sees an empty page.",
+        componentIds: [client.id],
+        remediationHint:
+          "Fine when the app sits behind a login. If pages must be indexed or must paint fast on a poor connection, server or static rendering is the trade you want.",
+      })
+    },
+  },
+  {
+    id: "frontend.client-validation-is-not-enforcement",
+    category: "security",
+    check: ({ graph }) => {
+      const client = graph.components.find((c) => c.kind === "web-client")
+      if (!client?.config.clientValidation) return null
+      return v({
+        ruleId: "frontend.client-validation-is-not-enforcement",
+        topicIds: [
+          "frontend.client-validation",
+          "security.authn-vs-authz",
+          "security.zero-trust",
+        ],
+        severity: "info",
+        title: "Client-side validation is a courtesy, not a control",
+        explanation:
+          "It makes the form pleasant to fill in, and it is bypassed by anyone willing to open devtools or call your API directly. It reduces no risk and, importantly, it does not reduce load either -- a bad request still costs you a round trip once someone skips the form.",
+        componentIds: [client.id],
+        remediationHint:
+          "Keep it for the UX, and validate everything again at the API. Treat the browser as an untrusted client, because it is one.",
+      })
+    },
+  },
+  {
+    id: "frontend.client-retry-storm",
+    category: "resilience",
+    check: ({ graph }) => {
+      const client = graph.components.find((c) => c.kind === "web-client")
+      if (client?.config.clientRetry !== "immediate") return null
+      return v({
+        ruleId: "frontend.client-retry-storm",
+        topicIds: [
+          "frontend.client-resilience",
+          "reliability.retries-and-jitter",
+          "messaging.backpressure",
+        ],
+        title: "Every browser retries immediately on failure",
+        explanation:
+          "When the backend stumbles, thousands of clients notice at the same moment and all retry at the same moment. The load arrives in synchronised waves precisely while you are least able to serve it, which is how a brief blip becomes a sustained outage.",
+        componentIds: [client.id],
+        remediationHint:
+          "Exponential backoff with jitter, and a cap on attempts. The jitter is the part that matters -- it is what desynchronises the crowd.",
+      })
+    },
+  },
+  {
+    id: "api.gateway-over-single-service",
+    category: "cost",
+    check: ({ graph }) => {
+      const gateway = graph.components.find((c) => c.kind === "api-gateway")
+      if (!gateway) return null
+      const services = graph.components.filter(
+        (c) => c.kind === "app-server" || c.kind === "serverless-function",
+      )
+      if (services.length > 1) return null
+      const lb = graph.components.find((c) => c.kind === "load-balancer")
+      if (!lb) return null
+      return v({
+        ruleId: "api.gateway-over-single-service",
+        topicIds: [
+          "api.gateway-and-bff",
+          "cost.right-sizing",
+          "load-balancing.l4-vs-l7",
+        ],
+        severity: "warn",
+        title: "A gateway and a load balancer in front of one service",
+        explanation:
+          "These solve different problems. A load balancer spreads traffic across instances of one service. A gateway is a single front door for many services -- routing by path, per-client rate limits, auth, quotas. With exactly one service behind it, the gateway is doing a job nobody has yet.",
+        componentIds: [gateway.id, lb.id],
+        remediationHint:
+          "Drop it until there is a second service to front, or keep it and drop the load balancer if what you actually wanted was the rate limiting and auth.",
+      })
     },
   },
   {

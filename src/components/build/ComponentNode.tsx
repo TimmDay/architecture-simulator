@@ -3,6 +3,7 @@
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react"
 import {
   Boxes,
+  MonitorSmartphone,
   Cloud,
   Database,
   Gauge,
@@ -25,6 +26,7 @@ const ICONS: Partial<Record<ComponentKind, typeof Server>> = {
   cache: Zap,
   cdn: Cloud,
   "api-gateway": Gauge,
+  "web-client": MonitorSmartphone,
 }
 
 export type ComponentNodeData = {

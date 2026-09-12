@@ -26,6 +26,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: false,
     managed: true,
     optionalOnPath: false,
+    clientSide: false,
     routesTraffic: true,
     costPerInstanceHourUsd: 0.025, // ~$18/mo
     failureModes: ["az-loss", "region-loss"],
@@ -42,6 +43,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: false,
     managed: false,
     optionalOnPath: false,
+    clientSide: false,
     routesTraffic: false,
     costPerInstanceHourUsd: 0.04, // ~$29/mo
     failureModes: ["process-crash", "az-loss", "connection-exhaustion"],
@@ -59,6 +61,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: true,
     managed: false,
     optionalOnPath: false,
+    clientSide: false,
     routesTraffic: false,
     costPerInstanceHourUsd: 0.17, // ~$124/mo
     failureModes: ["disk-failure", "az-loss", "connection-exhaustion"],
@@ -81,6 +84,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: true,
     managed: false,
     optionalOnPath: true,
+    clientSide: false,
     routesTraffic: false,
     costPerInstanceHourUsd: 0.17, // ~$124/mo
     failureModes: ["disk-failure", "az-loss", "replication-stall"],
@@ -101,6 +105,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: false,
     managed: false,
     optionalOnPath: true,
+    clientSide: false,
     routesTraffic: false,
     costPerInstanceHourUsd: 0.03, // ~$22/mo
     failureModes: ["process-crash", "az-loss", "cache-eviction-storm"],
@@ -121,10 +126,49 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     durable: false,
     managed: true,
     optionalOnPath: true,
+    clientSide: false,
     routesTraffic: true,
     costPerInstanceHourUsd: 0.015, // ~$11/mo at this scale
     failureModes: [],
     supports: { replicas: false, consistencyModes: ["eventual"] },
+  },
+
+  "api-gateway": {
+    kind: "api-gateway",
+    label: "API gateway",
+    capacity: { readRps: 5_000, writeRps: 5_000 },
+    baseLatency: { p50Ms: 4, p99Ms: 15 },
+    baselineAvailability: 0.9995,
+    stateful: false,
+    durable: false,
+    managed: true,
+    optionalOnPath: false,
+    clientSide: false,
+    routesTraffic: true,
+    costPerInstanceHourUsd: 0.045, // ~$33/mo
+    failureModes: ["az-loss", "region-loss"],
+    supports: { replicas: false },
+  },
+
+  "web-client": {
+    kind: "web-client",
+    label: "Web client",
+    // Runs in the user's browser, so there is no server capacity to exhaust.
+    capacity: {
+      readRps: Number.MAX_SAFE_INTEGER,
+      writeRps: Number.MAX_SAFE_INTEGER,
+    },
+    baseLatency: { p50Ms: 0, p99Ms: 0 },
+    baselineAvailability: 1,
+    stateful: false,
+    durable: false,
+    managed: false,
+    optionalOnPath: false,
+    clientSide: true,
+    routesTraffic: true,
+    costPerInstanceHourUsd: 0,
+    failureModes: [],
+    supports: { replicas: false },
   },
 }
 

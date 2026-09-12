@@ -53,44 +53,112 @@ export function ConfigPanel({ component, onChange, onDelete }: Props) {
       />
 
       <div className="divide-line divide-y">
-        <Row
-          label="Instances"
-          hint={`${spec.capacity.readRps.toLocaleString()} reads/s each`}
-        >
-          <input
-            type="number"
-            min={1}
-            max={50}
-            value={component.instances}
-            onChange={(e) =>
-              onChange({
-                ...component,
-                instances: Math.max(1, +e.target.value),
-              })
-            }
-            className={num}
-          />
-        </Row>
+        {/* A browser app has no instance count and no zone to sit in -- it runs
+            wherever the user is. Offering those controls invites nonsense. */}
+        {!spec.clientSide && (
+          <>
+            <Row
+              label="Instances"
+              hint={`${spec.capacity.readRps.toLocaleString()} reads/s each`}
+            >
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={component.instances}
+                onChange={(e) =>
+                  onChange({
+                    ...component,
+                    instances: Math.max(1, +e.target.value),
+                  })
+                }
+                className={num}
+              />
+            </Row>
 
-        <Row
-          label="Availability zones"
-          hint={
-            spec.managed
-              ? "Managed service — the provider runs the redundancy."
-              : "Instances spread round-robin. One instance can only sit in one zone."
-          }
-        >
-          <input
-            type="number"
-            min={1}
-            max={3}
-            value={cfg.availabilityZones ?? 1}
-            onChange={(e) =>
-              set({ availabilityZones: Math.max(1, +e.target.value) })
-            }
-            className={num}
-          />
-        </Row>
+            <Row
+              label="Availability zones"
+              hint={
+                spec.managed
+                  ? "Managed service — the provider runs the redundancy."
+                  : "Instances spread round-robin. One instance can only sit in one zone."
+              }
+            >
+              <input
+                type="number"
+                min={1}
+                max={3}
+                value={cfg.availabilityZones ?? 1}
+                onChange={(e) =>
+                  set({ availabilityZones: Math.max(1, +e.target.value) })
+                }
+                className={num}
+              />
+            </Row>
+          </>
+        )}
+
+        {component.kind === "api-gateway" && (
+          <div className="py-2">
+            <p className="text-fog/70 text-[10px] leading-snug">
+              Not the same job as a load balancer. A{" "}
+              <strong className="text-chalk/80">load balancer</strong> spreads
+              traffic across instances of one service. A{" "}
+              <strong className="text-chalk/80">gateway</strong> is one front
+              door for many services — routing by path, auth, per-client rate
+              limits. You want both once there is more than one service behind
+              one public surface.
+            </p>
+          </div>
+        )}
+
+        {component.kind === "web-client" && (
+          <>
+            <Row label="Rendering" hint="Where the HTML is produced">
+              <select
+                value={cfg.rendering ?? "csr"}
+                onChange={(e) =>
+                  set({ rendering: e.target.value as "static" | "ssr" | "csr" })
+                }
+                className={sel}
+              >
+                <option value="static">Static</option>
+                <option value="ssr">Server-rendered</option>
+                <option value="csr">Client-rendered</option>
+              </select>
+            </Row>
+            <Row
+              label="Validate in browser"
+              hint="Pleasant to use. Not a control — the API must still check."
+            >
+              <input
+                type="checkbox"
+                checked={cfg.clientValidation ?? false}
+                onChange={(e) => set({ clientValidation: e.target.checked })}
+                className="accent-accent h-4 w-4"
+              />
+            </Row>
+            <Row
+              label="Retry on failure"
+              hint="Thousands of clients fail at the same instant"
+            >
+              <select
+                value={cfg.clientRetry ?? "none"}
+                onChange={(e) =>
+                  set({
+                    clientRetry: e.target.value as
+                      "none" | "immediate" | "backoff-jitter",
+                  })
+                }
+                className={sel}
+              >
+                <option value="none">Don&apos;t retry</option>
+                <option value="immediate">Retry immediately</option>
+                <option value="backoff-jitter">Backoff with jitter</option>
+              </select>
+            </Row>
+          </>
+        )}
 
         {spec.supports.sessionStore && (
           <Row label="Sessions" hint="Where login state lives">

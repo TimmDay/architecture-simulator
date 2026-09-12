@@ -29,10 +29,18 @@ export function Palette({ kinds }: { kinds: ComponentKind[] }) {
               {spec.label}
             </div>
             <div className="text-fog/70 mt-0.5 text-[10px]">
-              {spec.capacity.readRps.toLocaleString()} r/s
-              {spec.capacity.writeRps !== spec.capacity.readRps &&
-                ` · ${spec.capacity.writeRps.toLocaleString()} w/s`}{" "}
-              · ${monthly}/mo
+              {spec.clientSide ? (
+                // Capacity and cost are meaningless for something running on
+                // the user's own device, and MAX_SAFE_INTEGER reads as noise.
+                <>runs on the user&apos;s device · no server cost</>
+              ) : (
+                <>
+                  {spec.capacity.readRps.toLocaleString()} r/s
+                  {spec.capacity.writeRps !== spec.capacity.readRps &&
+                    ` · ${spec.capacity.writeRps.toLocaleString()} w/s`}{" "}
+                  · ${monthly}/mo
+                </>
+              )}
             </div>
           </div>
         )

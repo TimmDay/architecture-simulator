@@ -19,6 +19,7 @@ export type ComponentKind =
   | "cdn"
   | "load-balancer"
   | "api-gateway"
+  | "web-client"
   | "app-server"
   | "worker"
   | "serverless-function"
@@ -109,6 +110,16 @@ export type ComponentSpec = {
    * which quietly invalidates every capacity number downstream of it.
    */
   routesTraffic: boolean
+  /**
+   * Runs on the user's device, not on your infrastructure.
+   *
+   * Such a component is excluded from availability, cost and server-side
+   * latency entirely -- a browser app is not a thing you keep up, and counting
+   * it in the serial availability product would say that shipping a web app
+   * makes your system less reliable. This is distinct from `optionalOnPath`,
+   * which is about degrading vs breaking; this is about ownership.
+   */
+  clientSide: boolean
   costPerInstanceHourUsd: number
   failureModes: FailureModeId[]
   supports: {
@@ -147,6 +158,15 @@ export type PlacedComponent = {
     ttlSeconds?: number
     autoscale?: { minInstances: number; maxInstances: number }
     sessionStore?: "in-memory" | "shared" | "none"
+    /**
+     * How pages reach the user. Not decoration: server rendering moves real
+     * work onto the app tier, and static rendering is only worth choosing if
+     * something is actually caching it.
+     */
+    rendering?: "static" | "ssr" | "csr"
+    /** Validation in the browser. UX only -- it is trivially bypassed. */
+    clientValidation?: boolean
+    clientRetry?: "none" | "immediate" | "backoff-jitter"
   }
 }
 
