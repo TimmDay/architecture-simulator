@@ -102,6 +102,32 @@ const split = await page.evaluate(() =>
 console.log("utilisation after fanning the LB to a second app server:")
 split.forEach((t) => console.log("   ", t.replace(/\s+/g, " ").slice(0, 46)))
 
+// Raising instances must pile up cards, so redundancy is visible at a glance.
+await page.evaluate(() => {
+  const n = [...document.querySelectorAll(".react-flow__node")][2]
+  const r = n.getBoundingClientRect()
+  n.dispatchEvent(
+    new MouseEvent("click", {
+      bubbles: true,
+      clientX: r.x + 20,
+      clientY: r.y + 14,
+    }),
+  )
+})
+await page.waitForTimeout(350)
+await page.locator('aside input[type="number"]').first().fill("4")
+await page.waitForTimeout(400)
+const layers = await page.evaluate(
+  () =>
+    [...document.querySelectorAll(".react-flow__node")][2]?.querySelectorAll(
+      "div[aria-hidden]",
+    ).length ?? 0,
+)
+console.log("cards stacked behind a 4-instance tier:", layers, "(expect 3)")
+if (layers !== 3) errs.push(`instance stack drew ${layers} cards, expected 3`)
+await page.mouse.click(1000, 800)
+await page.waitForTimeout(300)
+
 // Selecting a line must open its config panel.
 await page.mouse.click(
   ...(await page.evaluate(() => {
