@@ -51,6 +51,7 @@ rm -rf .next && pnpm dev   # then hard-refresh the browser (⌘⇧R)
 | `src/drill/cards/` | The deck, one module per domain so a card is reviewable in a PR |
 | `src/sim/` | The engine: `simulate()`, the rules, the component catalogue |
 | `src/sim/scenarios/` | Scenario data plus each one's reference solution |
+| `src/sim/observability.ts` | The observability probe — findings derived by comparing fault rounds |
 | `src/storage/` | `ProgressStore` — local today, Firestore when you're ready |
 | `docs/FIRESTORE_SETUP.md` | How to move progress into Firestore and sync across devices |
 

@@ -13,7 +13,14 @@ import {
   type Connection,
   type Edge as FlowEdge,
 } from "@xyflow/react"
-import { Activity, Play, RotateCcw, ShieldAlert } from "lucide-react"
+import Link from "next/link"
+import {
+  Activity,
+  ChevronLeft,
+  Play,
+  RotateCcw,
+  ShieldAlert,
+} from "lucide-react"
 import { CATALOGUE } from "~/sim/catalogue"
 import { gradeAttempt, type AttemptResult } from "~/sim/grade"
 import { simulate } from "~/sim/simulate"
@@ -25,7 +32,7 @@ import type {
   PlacedComponent,
   Scenario,
 } from "~/sim/types"
-import { CLIENT_NODE_ID } from "~/sim/types"
+import { CLIENT_NODE_ID, FEATURE_LABELS } from "~/sim/types"
 import { ALL_CARDS } from "~/drill/cards"
 import { enqueueFromVerdict, newCardState } from "~/drill/sm2"
 import { getProgressStore } from "~/storage"
@@ -405,6 +412,12 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           rather than hiding below a long brief and a long palette. */}
       <aside className="border-line bg-panel/40 flex w-80 shrink-0 flex-col border-r">
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <Link
+            href="/build"
+            className="text-fog hover:text-chalk mb-2 flex items-center gap-1 text-[11px]"
+          >
+            <ChevronLeft size={12} /> All scenarios
+          </Link>
           <h2 className="text-chalk text-base font-semibold">
             {scenario.title}
           </h2>
@@ -426,6 +439,16 @@ function Workspace({ scenario }: { scenario: Scenario }) {
                 ["Budget", `≤ $${scenario.requirements.monthlyBudgetUsd}/mo`],
                 ["Durability", scenario.requirements.durability],
                 ["Consistency", scenario.requirements.consistency],
+                ...(scenario.requirements.compliance
+                  ? [
+                      [
+                        "Compliance",
+                        scenario.requirements.compliance
+                          .join(", ")
+                          .toUpperCase(),
+                      ] as [string, string],
+                    ]
+                  : []),
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between">
                   <dt className="text-fog">{k}</dt>
@@ -433,6 +456,18 @@ function Workspace({ scenario }: { scenario: Scenario }) {
                 </div>
               ))}
             </dl>
+
+            <h3 className="text-fog mt-3 mb-1.5 text-[11px] font-medium tracking-wide uppercase">
+              The system does
+            </h3>
+            <ul className="space-y-1">
+              {scenario.features.map((f) => (
+                <li key={f} className="text-chalk/80 flex gap-1.5 text-[12px]">
+                  <span className="text-accent">·</span>
+                  {FEATURE_LABELS[f]}
+                </li>
+              ))}
+            </ul>
           </div>
 
           <div className="mt-5">

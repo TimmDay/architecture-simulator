@@ -17,7 +17,9 @@ const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 } })
 const errs = []
 page.on("pageerror", (e) => errs.push(String(e).slice(0, 300)))
-await page.goto("http://localhost:3000/build", { waitUntil: "networkidle" })
+await page.goto("http://localhost:3000/build/01-first-real-customers", {
+  waitUntil: "networkidle",
+})
 await page.waitForTimeout(1200)
 
 async function drop(label, x, y) {
@@ -82,7 +84,7 @@ await drop("SQL primary", 1000, 400)
 await connect(0, 1)
 await connect(1, 2)
 await connect(2, 3)
-await page.getByRole("button", { name: /Pressure test/i }).click()
+await page.getByRole("button", { name: /Pressure/i }).click()
 await page.waitForTimeout(900)
 console.log("=== RESULTS ===")
 console.log(

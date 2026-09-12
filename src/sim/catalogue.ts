@@ -27,6 +27,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     managed: true,
     optionalOnPath: false,
     clientSide: false,
+    caches: false,
+    canAddRedundancy: true,
     routesTraffic: true,
     costPerInstanceHourUsd: 0.025, // ~$18/mo
     failureModes: ["az-loss", "region-loss"],
@@ -44,6 +46,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     managed: false,
     optionalOnPath: false,
     clientSide: false,
+    caches: false,
+    canAddRedundancy: true,
     routesTraffic: false,
     costPerInstanceHourUsd: 0.04, // ~$29/mo
     failureModes: ["process-crash", "az-loss", "connection-exhaustion"],
@@ -62,6 +66,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     managed: false,
     optionalOnPath: false,
     clientSide: false,
+    caches: false,
+    canAddRedundancy: true,
     routesTraffic: false,
     costPerInstanceHourUsd: 0.17, // ~$124/mo
     failureModes: ["disk-failure", "az-loss", "connection-exhaustion"],
@@ -85,6 +91,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     managed: false,
     optionalOnPath: true,
     clientSide: false,
+    caches: false,
+    canAddRedundancy: true,
     routesTraffic: false,
     costPerInstanceHourUsd: 0.17, // ~$124/mo
     failureModes: ["disk-failure", "az-loss", "replication-stall"],
@@ -106,6 +114,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     managed: false,
     optionalOnPath: true,
     clientSide: false,
+    caches: true,
+    canAddRedundancy: true,
     routesTraffic: false,
     costPerInstanceHourUsd: 0.03, // ~$22/mo
     failureModes: ["process-crash", "az-loss", "cache-eviction-storm"],
@@ -119,7 +129,10 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   cdn: {
     kind: "cdn",
     label: "CDN",
-    capacity: { readRps: 100_000, writeRps: 0 },
+    // Writes are proxied straight through, not cached. A real CDN passes a POST
+    // to the origin without complaint, so refusing them here would invent a
+    // mistake that does not exist.
+    capacity: { readRps: 100_000, writeRps: 50_000 },
     baseLatency: { p50Ms: 15, p99Ms: 40 },
     baselineAvailability: 0.9999,
     stateful: false,
@@ -127,6 +140,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     managed: true,
     optionalOnPath: true,
     clientSide: false,
+    caches: true,
+    canAddRedundancy: true,
     routesTraffic: true,
     costPerInstanceHourUsd: 0.015, // ~$11/mo at this scale
     failureModes: [],
@@ -144,9 +159,94 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     managed: true,
     optionalOnPath: false,
     clientSide: false,
+    caches: false,
+    canAddRedundancy: true,
     routesTraffic: true,
     costPerInstanceHourUsd: 0.045, // ~$33/mo
     failureModes: ["az-loss", "region-loss"],
+    supports: { replicas: false },
+  },
+
+  queue: {
+    kind: "queue",
+    label: "Queue",
+    capacity: { readRps: 10_000, writeRps: 10_000 },
+    baseLatency: { p50Ms: 5, p99Ms: 20 },
+    baselineAvailability: 0.9999,
+    stateful: true,
+    durable: true,
+    managed: true,
+    optionalOnPath: false,
+    clientSide: false,
+    caches: false,
+    canAddRedundancy: true,
+    // Competing consumers: messages are divided between them, not copied.
+    routesTraffic: true,
+    costPerInstanceHourUsd: 0.02, // ~$15/mo
+    failureModes: ["az-loss"],
+    supports: { replicas: false },
+  },
+
+  worker: {
+    kind: "worker",
+    label: "Worker",
+    // Background compute -- image processing, OCR, thumbnailing. Far more
+    // expensive per item than serving a web request, which is the whole reason
+    // it belongs off the request path.
+    capacity: { readRps: 40, writeRps: 40 },
+    baseLatency: { p50Ms: 400, p99Ms: 1_500 },
+    baselineAvailability: 0.99,
+    stateful: false,
+    durable: false,
+    managed: false,
+    optionalOnPath: false,
+    clientSide: false,
+    caches: false,
+    canAddRedundancy: true,
+    routesTraffic: false,
+    costPerInstanceHourUsd: 0.08, // ~$58/mo
+    failureModes: ["process-crash", "az-loss"],
+    supports: { replicas: false, autoscale: true },
+  },
+
+  "object-store": {
+    kind: "object-store",
+    label: "Object store",
+    capacity: { readRps: 5_000, writeRps: 1_000 },
+    baseLatency: { p50Ms: 25, p99Ms: 90 },
+    baselineAvailability: 0.9999,
+    stateful: true,
+    durable: true,
+    managed: true,
+    optionalOnPath: false,
+    clientSide: false,
+    caches: false,
+    canAddRedundancy: true,
+    routesTraffic: false,
+    costPerInstanceHourUsd: 0.03, // ~$22/mo at this volume
+    failureModes: ["region-loss"],
+    supports: { replicas: false, encryptionAtRest: true },
+  },
+
+  "third-party-api": {
+    kind: "third-party-api",
+    label: "Third-party API",
+    // Someone else's system. You cannot add instances, you cannot tune it, and
+    // its availability is a ceiling on yours wherever it sits on the synchronous
+    // path. The latency is theirs too -- note the p99.
+    capacity: { readRps: 500, writeRps: 500 },
+    baseLatency: { p50Ms: 120, p99Ms: 600 },
+    baselineAvailability: 0.995,
+    stateful: true,
+    durable: true,
+    managed: true,
+    optionalOnPath: false,
+    clientSide: false,
+    caches: false,
+    canAddRedundancy: false,
+    routesTraffic: false,
+    costPerInstanceHourUsd: 0, // billed per transaction, not per hour
+    failureModes: ["region-loss"],
     supports: { replicas: false },
   },
 
@@ -165,6 +265,8 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     managed: false,
     optionalOnPath: false,
     clientSide: true,
+    caches: false,
+    canAddRedundancy: false,
     routesTraffic: true,
     costPerInstanceHourUsd: 0,
     failureModes: [],

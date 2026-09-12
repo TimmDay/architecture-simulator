@@ -35,8 +35,20 @@ export type EffectiveComponent = PlacedComponent & {
 export function applyFaults(
   graph: ArchitectureGraph,
   faults: FaultEvent[],
-): { components: EffectiveComponent[]; partitionedEdgeIds: Set<string> } {
+): {
+  components: EffectiveComponent[]
+  partitionedEdgeIds: Set<string>
+  flushedCacheIds: Set<string>
+  trafficMultiplier: number
+} {
   const partitionedEdgeIds = new Set<string>()
+  const flushedCacheIds = new Set<string>()
+  let trafficMultiplier = 1
+
+  for (const f of faults) {
+    if (f.kind === "traffic-spike") trafficMultiplier *= f.multiplier
+    if (f.kind === "cache-flush") flushedCacheIds.add(f.componentId)
+  }
 
   const components = graph.components.map((c): EffectiveComponent => {
     let alive = c.instances
@@ -82,7 +94,7 @@ export function applyFaults(
     }
   })
 
-  return { components, partitionedEdgeIds }
+  return { components, partitionedEdgeIds, flushedCacheIds, trafficMultiplier }
 }
 
 /**
@@ -97,12 +109,20 @@ export function applyFaults(
 export function cacheHitRatio(
   component: PlacedComponent,
   load: LoadProfile,
+  flushed = false,
 ): number {
+  // A cold cache hits nothing. Every read falls through to the store behind it,
+  // which is the stampede the store was being protected from.
+  if (flushed) return 0
   const ttl = component.config.ttlSeconds ?? 60
   const ttlFactor = Math.min(1, ttl / 60)
-  const shapePenalty =
-    load.shape === "thundering-herd" ? 0.5 : load.shape === "spiky" ? 0.75 : 1
-  return load.cacheableReadFraction * ttlFactor * shapePenalty
+  // No penalty for spiky or herd-shaped traffic. That was double-counting, and
+  // backwards: a front-page event where a crowd reads the SAME page is the best
+  // case for a cache, not the worst. How cacheable the workload is already
+  // lives in `cacheableReadFraction`, which the scenario states precisely.
+  // The stampede risk is a separate thing, and it is modelled as the
+  // `cache-flush` fault rather than as a haircut on the steady-state hit rate.
+  return load.cacheableReadFraction * ttlFactor
 }
 
 type Flow = { reads: number; writes: number }
@@ -125,14 +145,17 @@ export function propagate(
   edges: Edge[],
   load: LoadProfile,
   partitionedEdgeIds: Set<string>,
+  flushedCacheIds: Set<string> = new Set(),
+  trafficMultiplier = 1,
 ): Map<string, Flow> {
   const byId = new Map(components.map((c) => [c.id, c]))
   const flows = new Map<string, Flow>()
   for (const c of components) flows.set(c.id, { reads: 0, writes: 0 })
 
+  const offeredRps = load.peakRps * trafficMultiplier
   const totalReads =
-    (load.peakRps * load.readWriteRatio) / (load.readWriteRatio + 1)
-  const totalWrites = load.peakRps / (load.readWriteRatio + 1)
+    (offeredRps * load.readWriteRatio) / (load.readWriteRatio + 1)
+  const totalWrites = offeredRps / (load.readWriteRatio + 1)
 
   const live = edges.filter(
     (e) =>
@@ -164,17 +187,35 @@ export function propagate(
 
     const readEdges = outgoing.filter((e) => (e.carries ?? "all") !== "writes")
     const writeEdges = outgoing.filter((e) => (e.carries ?? "all") !== "reads")
-    const readDiv = routes && readEdges.length > 0 ? readEdges.length : 1
-    const writeDiv = routes && writeEdges.length > 0 ? writeEdges.length : 1
+    // For a router, `fanout` is a WEIGHT rather than a multiplier: an edge with
+    // fanout 3 beside one with fanout 1 takes three quarters of the flow. Equal
+    // weights give an even split, so the common case needs no thought, and
+    // conservation holds whatever the weights are.
+    const weight = (e: Edge) => e.fanout ?? 1
+    const readWeight = readEdges.reduce((t, e) => t + weight(e), 0)
+    const writeWeight = writeEdges.reduce((t, e) => t + weight(e), 0)
 
     const out: { id: string; flow: Flow }[] = []
     for (const e of outgoing) {
       const carries = e.carries ?? "all"
-      // A router passes traffic through; it does not multiply it, so `fanout`
-      // only applies to callers.
-      const fanout = routes ? 1 : (e.fanout ?? 1)
-      const reads = carries === "writes" ? 0 : (flow.reads / readDiv) * fanout
-      const writes = carries === "reads" ? 0 : (flow.writes / writeDiv) * fanout
+      let reads: number
+      let writes: number
+      if (routes) {
+        reads =
+          carries === "writes" || readWeight === 0
+            ? 0
+            : flow.reads * (weight(e) / readWeight)
+        writes =
+          carries === "reads" || writeWeight === 0
+            ? 0
+            : flow.writes * (weight(e) / writeWeight)
+      } else {
+        // A caller makes each of these calls per inbound request. Above 1 that
+        // is an N+1; below 1 only a fraction of requests take the path.
+        const f = weight(e)
+        reads = carries === "writes" ? 0 : flow.reads * f
+        writes = carries === "reads" ? 0 : flow.writes * f
+      }
       if (reads > 0 || writes > 0)
         out.push({ id: e.to, flow: { reads, writes } })
     }
@@ -205,10 +246,13 @@ export function propagate(
     acc.writes += flow.writes
 
     let outFlow = flow
-    if (component.kind === "cache") {
+    const spec = CATALOGUE[component.kind]
+    if (spec?.caches) {
       // Sequential fallback: only misses continue downstream.
       outFlow = {
-        reads: flow.reads * (1 - cacheHitRatio(component, load)),
+        reads:
+          flow.reads *
+          (1 - cacheHitRatio(component, load, flushedCacheIds.has(id))),
         writes: flow.writes,
       }
     }
@@ -392,7 +436,10 @@ export function failureDomains(
   spec: ComponentSpec,
 ): number {
   const zones = c.config.availabilityZones ?? 1
-  return Math.max(1, spec.managed ? zones : Math.min(c.instances, zones))
+  const base = Math.max(1, spec.managed ? zones : Math.min(c.instances, zones))
+  // A standby occupies a second failure domain without serving any traffic --
+  // which is exactly the trade: availability, no capacity, double the bill.
+  return c.config.standby ? Math.max(2, base) : base
 }
 
 /** Would losing this component degrade the system, or break it? */
@@ -410,7 +457,9 @@ export function monthlyCost(graph: ArchitectureGraph): number {
   return graph.components.reduce((sum, c) => {
     const spec = CATALOGUE[c.kind]
     if (!spec || spec.clientSide) return sum
-    return sum + spec.costPerInstanceHourUsd * HOURS_PER_MONTH * c.instances
+    // A standby is a whole second machine you pay for and never serve from.
+    const units = c.instances + (c.config.standby ? 1 : 0)
+    return sum + spec.costPerInstanceHourUsd * HOURS_PER_MONTH * units
   }, 0)
 }
 
@@ -436,8 +485,16 @@ export function staleReadWindowMs(graph: ArchitectureGraph): number {
  */
 export function simulate(input: SimulateInput): SimulationResult {
   const { graph, load, faults, scenario } = input
-  const { components, partitionedEdgeIds } = applyFaults(graph, faults)
-  const flows = propagate(components, graph.edges, load, partitionedEdgeIds)
+  const { components, partitionedEdgeIds, flushedCacheIds, trafficMultiplier } =
+    applyFaults(graph, faults)
+  const flows = propagate(
+    components,
+    graph.edges,
+    load,
+    partitionedEdgeIds,
+    flushedCacheIds,
+    trafficMultiplier,
+  )
 
   const perComponent: Record<string, ComponentMetrics> = {}
   for (const c of components) {
@@ -455,7 +512,7 @@ export function simulate(input: SimulateInput): SimulationResult {
     partitionedEdgeIds,
   )
 
-  const offered = load.peakRps
+  const offered = load.peakRps * trafficMultiplier
   const dropped = Object.values(perComponent).reduce(
     (s, m) => s + (Number.isFinite(m.droppedRps) ? m.droppedRps : 0),
     0,

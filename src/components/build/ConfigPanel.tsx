@@ -179,6 +179,48 @@ export function ConfigPanel({ component, onChange, onDelete }: Props) {
           </Row>
         )}
 
+        {spec.stateful && spec.supports.backups && (
+          <Row
+            label="Hot standby"
+            hint="Second zone, promoted on failure. No extra capacity, double the cost."
+          >
+            <input
+              type="checkbox"
+              checked={cfg.standby ?? false}
+              onChange={(e) => set({ standby: e.target.checked })}
+              className="accent-accent h-4 w-4"
+            />
+          </Row>
+        )}
+
+        {component.kind === "queue" && (
+          <Row
+            label="Dead-letter queue"
+            hint="So one bad message cannot block the line"
+          >
+            <input
+              type="checkbox"
+              checked={cfg.deadLetterQueue ?? false}
+              onChange={(e) => set({ deadLetterQueue: e.target.checked })}
+              className="accent-accent h-4 w-4"
+            />
+          </Row>
+        )}
+
+        {component.kind === "app-server" && (
+          <Row
+            label="Idempotency keys"
+            hint="A timeout is an unknown, not a failure. Keys make a retry safe."
+          >
+            <input
+              type="checkbox"
+              checked={cfg.idempotencyKeys ?? false}
+              onChange={(e) => set({ idempotencyKeys: e.target.checked })}
+              className="accent-accent h-4 w-4"
+            />
+          </Row>
+        )}
+
         {spec.supports.backups && (
           <Row label="Backups" hint="Durability. Replication is not a backup.">
             <input

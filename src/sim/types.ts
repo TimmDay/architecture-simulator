@@ -21,6 +21,7 @@ export type ComponentKind =
   | "api-gateway"
   | "web-client"
   | "app-server"
+  | "third-party-api"
   | "worker"
   | "serverless-function"
   | "cache"
@@ -120,6 +121,23 @@ export type ComponentSpec = {
    * which is about degrading vs breaking; this is about ownership.
    */
   clientSide: boolean
+  /**
+   * Can you add redundancy to this yourself?
+   *
+   * False for a browser app and for somebody else's API: there is no second
+   * zone to put a user's laptop in, and you cannot scale a payment provider.
+   * The SPOF rule skips these, because "add a second instance across two zones"
+   * is not advice you can act on. Where a third party genuinely is a single
+   * point of failure, the finding worth making is about circuit breakers and
+   * fallbacks, which `resilience.third-party-on-sync-path` makes instead.
+   */
+  canAddRedundancy: boolean
+  /**
+   * Serves what it has and passes only its misses onward. True for a CDN as
+   * much as for an in-memory cache -- the difference between them is where they
+   * sit and what they can hold, not what they do to the flow.
+   */
+  caches: boolean
   costPerInstanceHourUsd: number
   failureModes: FailureModeId[]
   supports: {
@@ -167,6 +185,19 @@ export type PlacedComponent = {
     /** Validation in the browser. UX only -- it is trivially bypassed. */
     clientValidation?: boolean
     clientRetry?: "none" | "immediate" | "backoff-jitter"
+    /**
+     * A hot standby in a second zone, promoted automatically on failure.
+     *
+     * The third member of a trio worth keeping straight: a BACKUP protects
+     * against damage, a READ REPLICA adds read capacity, and a STANDBY adds
+     * availability. It doubles the bill and adds no capacity whatsoever, which
+     * is precisely why it is a decision rather than a default.
+     */
+    standby?: boolean
+    /** A dead-letter queue, so one bad message cannot block the whole line. */
+    deadLetterQueue?: boolean
+    /** Requests carry an idempotency key, so a retry cannot double-charge. */
+    idempotencyKeys?: boolean
   }
 }
 
@@ -188,7 +219,12 @@ export type Edge = {
    * player can actually make -- otherwise the rule that catches it can never fire.
    */
   carries?: "reads" | "writes" | "all"
-  /** Downstream calls per inbound request. This is how N+1 becomes measurable. */
+  /**
+   * Downstream calls per inbound request. Above 1 this is how N+1 becomes
+   * measurable; BELOW 1 it means only a fraction of requests take this path --
+   * 0.25 on an upload edge says a quarter of writes are file uploads. Without
+   * that, every write would be treated as a photograph.
+   */
   fanout?: number
   replication?: { mode: "sync" | "async"; lagMs: number }
   timeoutMs?: number
@@ -250,6 +286,37 @@ export type ArchitectureFamily =
   | "multi-region"
   | "data-intensive"
 
+/**
+ * What the product actually does.
+ *
+ * Rules gate on these so that findings stay inside the scenario. A helpdesk
+ * with no photo uploads should never be told its receipts belong in object
+ * storage -- that finding belongs to a scenario that has receipts. Without an
+ * explicit declaration, any rule written for one scenario leaks into every
+ * other one that happens to lack the component it looks for.
+ *
+ * They are shown to the player too: knowing the system has to take card
+ * payments is part of the brief, not a surprise held back for the grading.
+ */
+export type Feature =
+  | "user-accounts"
+  | "file-uploads"
+  | "background-processing"
+  | "payments"
+  | "public-content"
+  | "search"
+  | "reporting"
+
+export const FEATURE_LABELS: Record<Feature, string> = {
+  "user-accounts": "Accounts and login",
+  "file-uploads": "Users upload files",
+  "background-processing": "Work happens after the response",
+  payments: "Takes payments",
+  "public-content": "Public, crawlable pages",
+  search: "Full-text search",
+  reporting: "Reporting and exports",
+}
+
 export type Requirements = {
   p99Ms: number
   /** Graded ONLY under the fault script, never at baseline. */
@@ -279,6 +346,8 @@ export type Scenario = {
   family: ArchitectureFamily
   level: 1 | 2 | 3 | 4 | 5
   requirements: Requirements
+  /** What the product does. Rules gate on these -- see `Feature`. */
+  features: Feature[]
   /** What the traffic slider spans, ascending. Cost and capacity are graded against the last. */
   loadProfiles: LoadProfile[]
   /**

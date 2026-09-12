@@ -54,9 +54,11 @@ export const RULES: Rule[] = [
       for (const c of graph.components) {
         const spec = CATALOGUE[c.kind]
         if (!spec) continue
-        // A browser app is not yours to make redundant -- there is no second
-        // zone to put the user's laptop in.
-        if (spec.clientSide) continue
+        // Nothing you can act on: there is no second zone for a user's laptop,
+        // and you cannot scale somebody else's payment provider. Where a third
+        // party really is a single point of failure, the useful finding is
+        // about circuit breakers, and another rule makes it.
+        if (!spec.canAddRedundancy) continue
         const domains = failureDomains(c, spec)
         const onPath =
           (result.metrics.perComponent[c.id]?.offeredReadRps ?? 0) > 0 ||
@@ -626,6 +628,190 @@ export const RULES: Rule[] = [
         remediationHint:
           "Drop it until there is a second service to front, or keep it and drop the load balancer if what you actually wanted was the rate limiting and auth.",
       })
+    },
+  },
+  // --- external dependencies, async work, blobs ---------------------------
+  {
+    id: "resilience.third-party-on-sync-path",
+    category: "resilience",
+    check: ({ graph, result }) => {
+      const out: Verdict[] = []
+      for (const c of graph.components) {
+        if (c.kind !== "third-party-api") continue
+        const inbound = graph.edges.filter(
+          (e) => e.to === c.id && e.kind === "sync-request",
+        )
+        if (inbound.length === 0) continue
+        const unprotected = inbound.filter((e) => !e.circuitBreaker)
+        if (unprotected.length === 0) continue
+        const spec = CATALOGUE["third-party-api"]
+        out.push(
+          v({
+            ruleId: "resilience.third-party-on-sync-path",
+            topicIds: [
+              "reliability.circuit-breaker",
+              "reliability.graceful-degradation",
+              "reliability.bulkheads",
+            ],
+            title: `${c.label} is on the request path with no circuit breaker`,
+            explanation: `You do not own this dependency, cannot scale it, and cannot fix it at 3am. Its ${((1 - (spec?.baselineAvailability ?? 0.995)) * 100).toFixed(1)}% of downtime becomes your downtime, and its p99 of ${spec?.baseLatency.p99Ms ?? 600}ms becomes your floor. When it goes slow rather than down, your own threads pile up waiting on it and take out the endpoints that never needed it.`,
+            componentIds: [c.id],
+            remediationHint:
+              "Put a circuit breaker and a tight timeout on the call, and decide in advance what the product does when it opens -- queue the work and confirm later, or refuse cleanly. Deciding that during the incident is too late.",
+          }),
+        )
+      }
+      return out
+    },
+  },
+  {
+    id: "transactions.no-idempotency-key",
+    category: "consistency",
+    check: ({ graph, scenario }) => {
+      if (!scenario.features.includes("payments")) return null
+      const payment = graph.components.find((c) => c.kind === "third-party-api")
+      if (!payment) return null
+      const caller = graph.edges.find(
+        (e) => e.to === payment.id && e.kind === "sync-request",
+      )
+      if (!caller) return null
+      const app = graph.components.find((c) => c.id === caller.from)
+      if (app?.config.idempotencyKeys) return null
+      const retries = caller.retries ?? 0
+      return v({
+        ruleId: "transactions.no-idempotency-key",
+        topicIds: [
+          "transactions.idempotency",
+          "reliability.retries-and-jitter",
+          "messaging.delivery-semantics",
+        ],
+        title: `Calls to ${payment.label} carry no idempotency key`,
+        explanation:
+          retries > 0
+            ? `This call retries ${retries} times. A timeout does not tell you whether the request was processed -- only that you did not hear back -- so every retry risks charging the customer again.`
+            : "A network timeout does not tell you whether the other side processed the request, only that you did not hear back. Without a key to deduplicate on, any retry -- yours, a user's double-tap, or a proxy's -- risks a duplicate charge.",
+        componentIds: [app?.id ?? payment.id, payment.id],
+        remediationHint:
+          "Generate the key on the client, per logical operation, and send it with every attempt. The server stores it with the result of the first success and replays that result thereafter. Server-generated keys cannot help a retry that never got a response.",
+      })
+    },
+  },
+  {
+    id: "data-stores.blobs-in-database",
+    category: "capacity",
+    check: ({ graph, result, scenario }) => {
+      // Only a product that actually takes uploads can put them in the wrong
+      // place. Without this gate the rule scolds every scenario that happens
+      // to have no object store, receipts or not.
+      if (!scenario.features.includes("file-uploads")) return null
+      const store = graph.components.find((c) => c.kind === "object-store")
+      if (store) return null
+      const db = graph.components.find((c) => c.kind === "sql-primary")
+      if (!db) return null
+      const m = result.metrics.perComponent[db.id]
+      if (!m || m.offeredWriteRps <= 0) return null
+      return v({
+        ruleId: "data-stores.blobs-in-database",
+        topicIds: [
+          "data-stores.relational-vs-document",
+          "cost.unit-economics",
+          "caching.cdn",
+        ],
+        severity: "warn",
+        title: "Uploaded files have nowhere to go but the database",
+        explanation:
+          "There is no object store in this design, so photographs are landing in the relational database. Multi-megabyte rows wreck the buffer cache, bloat every backup, make restores slow enough to matter during an incident, and cost many times per gigabyte what object storage does.",
+        componentIds: [db.id],
+        remediationHint:
+          "Put the bytes in an object store and the URL in the database. Ideally let the phone upload straight to it with a pre-signed URL, so the files never pass through your app tier at all.",
+      })
+    },
+  },
+  {
+    id: "capacity.slow-work-on-request-path",
+    category: "capacity",
+    check: ({ graph, scenario }) => {
+      if (!scenario.features.includes("background-processing")) return null
+      const worker = graph.components.find((c) => c.kind === "worker")
+      if (worker) return null
+      const app = graph.components.find((c) => c.kind === "app-server")
+      if (!app) return null
+      return v({
+        ruleId: "capacity.slow-work-on-request-path",
+        topicIds: [
+          "styles.event-driven",
+          "messaging.queue-vs-log",
+          "fundamentals.littles-law",
+        ],
+        title: "Expensive processing is happening inside the request",
+        explanation:
+          "Files are being uploaded but nothing processes them in the background, so the work is happening while the user waits. Image processing takes hundreds of milliseconds of CPU per item -- an order of magnitude more than serving a page -- so it both blows the latency budget and consumes the app tier's capacity for requests that only needed a database read.",
+        componentIds: [app.id],
+        remediationHint:
+          "Accept the upload, put a message on a queue, return immediately, and let workers do the processing. The user gets a fast 202 and the work happens where it can be scaled independently.",
+      })
+    },
+  },
+  {
+    id: "messaging.no-dlq",
+    category: "resilience",
+    check: ({ graph, faults }) => {
+      const out: Verdict[] = []
+      const poisoned = faults.some((f) => f.kind === "poison-message")
+      for (const q of graph.components) {
+        if (q.kind !== "queue" || q.config.deadLetterQueue) continue
+        out.push(
+          v({
+            ruleId: "messaging.no-dlq",
+            topicIds: [
+              "messaging.dlq",
+              "messaging.ordering",
+              "messaging.consumer-lag",
+            ],
+            severity: poisoned ? "fail" : "warn",
+            title: poisoned
+              ? `A message ${q.label} cannot process is blocking the line`
+              : `${q.label} has no dead-letter queue`,
+            explanation: poisoned
+              ? "One corrupt upload is being retried forever at the head of the queue. Nothing behind it is being processed, and because nothing is erroring at the API, the backlog grows with every dashboard still green."
+              : "One message that always fails -- a corrupt file, a bug on one edge case -- will be retried forever and block everything behind it. Nothing errors; the queue just stops moving.",
+            componentIds: [q.id],
+            remediationHint:
+              "Move a message aside after N failures so the line drains. Then alert on the dead-letter queue's depth and give it an owner -- an unwatched DLQ is a silent data-loss mechanism, which is worse than the blockage it fixed.",
+          }),
+        )
+      }
+      return out
+    },
+  },
+  {
+    id: "security.card-data-unencrypted",
+    category: "security",
+    check: ({ graph, scenario }) => {
+      if (!scenario.requirements.compliance?.includes("pci")) return null
+      const out: Verdict[] = []
+      for (const c of graph.components) {
+        const spec = CATALOGUE[c.kind]
+        if (!spec?.supports.encryptionAtRest || c.config.encryptedAtRest)
+          continue
+        out.push(
+          v({
+            ruleId: "security.card-data-unencrypted",
+            topicIds: [
+              "security.encryption-at-rest",
+              "security.pii-and-residency",
+              "security.least-privilege",
+            ],
+            title: `${c.label} holds payment-adjacent data unencrypted`,
+            explanation:
+              "This scenario is in PCI scope. Receipts and transaction histories are not card numbers, but they are financial records tied to identifiable people, and an unencrypted store is the difference between a lost disk being an incident and being a disclosure.",
+            componentIds: [c.id],
+            remediationHint:
+              "Encrypt at rest everywhere in scope. Better still, never hold the card details at all -- let the provider tokenise them so the data you would have to protect never reaches you.",
+          }),
+        )
+      }
+      return out
     },
   },
   {

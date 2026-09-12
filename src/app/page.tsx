@@ -43,7 +43,8 @@ export default function HomePage() {
             and start breaking things.
           </p>
           <p className="text-fog/70 mt-4 text-xs">
-            {SCENARIOS.length} scenario(s) · level 1
+            {SCENARIOS.length} scenarios · levels 1–
+            {Math.max(...SCENARIOS.map((s) => s.level))}
           </p>
         </Link>
       </div>

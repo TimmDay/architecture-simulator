@@ -46,6 +46,8 @@ availability commitment is.
 
 You have $300 a month. Not $3,000. Build something you can defend.`,
 
+  features: ["user-accounts"],
+
   requirements: {
     p99Ms: 500,
     availability: 0.99, // graded only under the fault script
