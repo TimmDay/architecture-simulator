@@ -1,4 +1,5 @@
 import { simulate } from "./simulate"
+import { observabilityVerdicts } from "./observability"
 import type {
   ArchitectureGraph,
   Scenario,
@@ -38,9 +39,19 @@ function fmtPct(n: number) {
  * nothing on their own -- they are advice, and a design that meets every
  * requirement while carrying warnings is a design with trade-offs, not a wrong one.
  */
+export type ProbeOptions = {
+  /**
+   * Add the derived observability findings -- would you know this broke, and
+   * would you know where? Off by default so the ordinary pressure test stays
+   * about whether the design holds, not about how well you would see it fail.
+   */
+  observability?: boolean
+}
+
 export function gradeAttempt(
   graph: ArchitectureGraph,
   scenario: Scenario,
+  options: ProbeOptions = {},
 ): AttemptResult {
   const peak = scenario.loadProfiles[scenario.loadProfiles.length - 1]
   if (!peak) throw new Error(`Scenario ${scenario.id} has no load profiles`)
@@ -112,6 +123,10 @@ export function gradeAttempt(
     if (seen.has(key)) continue
     seen.add(key)
     verdicts.push(v)
+  }
+
+  if (options.observability) {
+    verdicts.push(...observabilityVerdicts(graph, baseline, rounds, scenario))
   }
 
   const failedReqs = requirements.filter((r) => !r.passed).length

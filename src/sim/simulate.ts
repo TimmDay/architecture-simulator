@@ -23,6 +23,12 @@ export type EffectiveComponent = PlacedComponent & {
   aliveInstances: number
   /** Independent failure domains actually available: min(alive, zones). */
   domains: number
+  /**
+   * Latency multiplier from a `latency-spike` fault -- a dependency that has
+   * gone slow without going down. This is the quiet failure mode: nothing
+   * errors, everything just takes longer.
+   */
+  latencyMultiplier: number
 }
 
 /** Apply one round of faults, producing the component set the round actually runs against. */
@@ -34,6 +40,7 @@ export function applyFaults(
 
   const components = graph.components.map((c): EffectiveComponent => {
     let alive = c.instances
+    let latencyMultiplier = 1
     const zones = c.config.availabilityZones ?? 1
 
     for (const f of faults) {
@@ -54,6 +61,9 @@ export function applyFaults(
         case "region-down":
           if (f.region === c.region) alive = 0
           break
+        case "latency-spike":
+          if (f.componentId === c.id) latencyMultiplier *= f.multiplier
+          break
         default:
           break
       }
@@ -64,7 +74,12 @@ export function applyFaults(
     }
 
     alive = Math.max(0, alive)
-    return { ...c, aliveInstances: alive, domains: Math.min(alive, zones) }
+    return {
+      ...c,
+      aliveInstances: alive,
+      domains: Math.min(alive, zones),
+      latencyMultiplier,
+    }
   })
 
   return { components, partitionedEdgeIds }
@@ -281,8 +296,11 @@ function metricsFor(
       utilization >= 1
         ? Infinity
         : (utilization * utilization) / (1 - utilization),
-    p50Ms: spec.baseLatency.p50Ms * inflation,
-    p99Ms: spec.baseLatency.p99Ms * inflation,
+    // A slow dependency multiplies service time; queueing inflation then
+    // compounds on top of it, which is why a modest slowdown upstream can
+    // produce a dramatic one downstream.
+    p50Ms: spec.baseLatency.p50Ms * inflation * component.latencyMultiplier,
+    p99Ms: spec.baseLatency.p99Ms * inflation * component.latencyMultiplier,
     droppedRps: utilization >= 1 ? Math.max(0, offered - capacity) : 0,
   }
 }

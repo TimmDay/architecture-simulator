@@ -13,7 +13,7 @@ import {
   type Connection,
   type Edge as FlowEdge,
 } from "@xyflow/react"
-import { Play, ShieldAlert, RotateCcw } from "lucide-react"
+import { Activity, Play, RotateCcw, ShieldAlert } from "lucide-react"
 import { CATALOGUE } from "~/sim/catalogue"
 import { gradeAttempt, type AttemptResult } from "~/sim/grade"
 import { simulate } from "~/sim/simulate"
@@ -287,20 +287,53 @@ function Workspace({ scenario }: { scenario: Scenario }) {
   }, [setNodes, setEdges, scenario])
 
   const run = useCallback(
-    (securityProbe = false) => {
-      const probed: Scenario = securityProbe
-        ? {
-            ...scenario,
-            faultScript: [
-              ...scenario.faultScript,
-              [
-                { kind: "unauthenticated-probe" },
-                { kind: "credential-stuffing", rps: 500 },
-              ],
+    (probe: "pressure" | "security" | "observability" = "pressure") => {
+      // Each probe is the same engine with extra rounds, and for observability
+      // an extra pass of derived findings. There is no second simulator.
+      let probed: Scenario = scenario
+      if (probe === "security") {
+        probed = {
+          ...scenario,
+          faultScript: [
+            ...scenario.faultScript,
+            [
+              { kind: "unauthenticated-probe" },
+              { kind: "credential-stuffing", rps: 500 },
             ],
-          }
-        : scenario
-      const graded = gradeAttempt(graph, probed)
+          ],
+        }
+      } else if (probe === "observability") {
+        // Deliberately QUIET faults. A dependency that goes slow rather than
+        // down, and a cache that empties, are the failures that keep every
+        // dashboard green -- which is the whole point of this probe.
+        const slowTarget =
+          graph.components.find((c) => c.kind === "sql-primary") ??
+          graph.components.find((c) => c.kind === "app-server")
+        const cache = graph.components.find((c) => c.kind === "cache")
+        probed = {
+          ...scenario,
+          faultScript: [
+            ...scenario.faultScript,
+            ...(slowTarget
+              ? [
+                  [
+                    {
+                      kind: "latency-spike" as const,
+                      componentId: slowTarget.id,
+                      multiplier: 6,
+                    },
+                  ],
+                ]
+              : []),
+            ...(cache
+              ? [[{ kind: "cache-flush" as const, componentId: cache.id }]]
+              : []),
+          ],
+        }
+      }
+      const graded = gradeAttempt(graph, probed, {
+        observability: probe === "observability",
+      })
       setResult(graded)
       setEnqueued(false)
       // Both panels share the right rail, and the config panel wins while
@@ -419,8 +452,10 @@ function Workspace({ scenario }: { scenario: Scenario }) {
 
       {/* Centre: canvas */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="border-line bg-panel/40 flex items-center gap-4 border-b px-4 py-2.5">
-          <div className="flex items-center gap-2">
+        {/* Wraps rather than overflowing: three probe buttons plus the metrics
+            do not fit beside the slider once both rails are open. */}
+        <div className="border-line bg-panel/40 flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="text-fog text-[11px]">Traffic</span>
             <input
               type="range"
@@ -430,7 +465,7 @@ function Workspace({ scenario }: { scenario: Scenario }) {
               onChange={(e) => setProfileIndex(+e.target.value)}
               className="accent-accent w-40"
             />
-            <span className="text-chalk w-56 text-[11px]">
+            <span className="text-chalk min-w-0 truncate text-[11px]">
               {load.label}{" "}
               <span className="text-fog">· {load.peakRps} rps peak</span>
             </span>
@@ -460,16 +495,25 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           </div>
 
           <button
-            onClick={() => run(false)}
+            onClick={() => run("pressure")}
+            title="Turn the traffic up and run the fault script"
             className="bg-accent/15 text-accent hover:bg-accent/25 flex items-center gap-1.5 rounded px-3 py-1.5 text-[12px] font-medium transition-colors"
           >
-            <Play size={12} /> Pressure test
+            <Play size={12} /> Pressure
           </button>
           <button
-            onClick={() => run(true)}
+            onClick={() => run("security")}
+            title="Probe the design for vulnerabilities"
             className="bg-fail/15 text-fail hover:bg-fail/25 flex items-center gap-1.5 rounded px-3 py-1.5 text-[12px] font-medium transition-colors"
           >
-            <ShieldAlert size={12} /> Security probe
+            <ShieldAlert size={12} /> Security
+          </button>
+          <button
+            onClick={() => run("observability")}
+            title="Would you know this broke, and would you know where?"
+            className="bg-warn/15 text-warn hover:bg-warn/25 flex items-center gap-1.5 rounded px-3 py-1.5 text-[12px] font-medium transition-colors"
+          >
+            <Activity size={12} /> Observability
           </button>
         </div>
 
