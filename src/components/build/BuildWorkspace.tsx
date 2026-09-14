@@ -18,12 +18,15 @@ import {
   Activity,
   ChevronLeft,
   Play,
+  Lightbulb,
   RotateCcw,
   ShieldAlert,
+  Undo2,
 } from "lucide-react"
 import { CATALOGUE } from "~/sim/catalogue"
 import { gradeAttempt, type AttemptResult } from "~/sim/grade"
 import { simulate } from "~/sim/simulate"
+import { layoutGraph } from "~/sim/layout"
 import { applyFaults } from "~/sim/simulate"
 import type {
   ArchitectureGraph,
@@ -78,9 +81,20 @@ function Workspace({ scenario }: { scenario: Scenario }) {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [profileIndex, setProfileIndex] = useState(0)
   const [result, setResult] = useState<AttemptResult | null>(null)
+  /**
+   * Your own design, stashed while the reference is on screen.
+   *
+   * Showing a solution must not destroy the attempt that earned the right to
+   * see it -- comparing the two is the entire value, and losing your work to a
+   * misplaced tap would make the button something to be afraid of.
+   */
+  const [stashed, setStashed] = useState<{
+    nodes: (ComponentNodeType | ClientNodeType)[]
+    edges: FlowEdge[]
+  } | null>(null)
   const [enqueued, setEnqueued] = useState(false)
   const wrapper = useRef<HTMLDivElement>(null)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, fitView } = useReactFlow()
 
   const load = scenario.loadProfiles[profileIndex] ?? scenario.loadProfiles[0]!
 
@@ -96,10 +110,11 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           id: e.id,
           from: e.source,
           to: e.target,
-          kind: "sync-request",
+          kind: cfg.kind ?? "sync-request",
           carries: cfg.carries ?? "all",
           fanout: cfg.fanout ?? 1,
-          timeoutMs: 2000,
+          timeoutMs: cfg.timeoutMs ?? 2000,
+          circuitBreaker: cfg.circuitBreaker ?? false,
           retries: 2,
           jitter: true,
         }
@@ -163,14 +178,23 @@ function Workspace({ scenario }: { scenario: Scenario }) {
       edges.map((e) => {
         const cfg = (e.data ?? {}) as Partial<EdgeConfig>
         const bits: string[] = []
+        if (cfg.kind === "async-publish") bits.push("async")
         if (cfg.carries && cfg.carries !== "all") bits.push(cfg.carries)
-        if ((cfg.fanout ?? 1) > 1) bits.push(`×${cfg.fanout}`)
+        if ((cfg.fanout ?? 1) !== 1) bits.push(`×${cfg.fanout}`)
+        if (cfg.circuitBreaker) bits.push("CB")
         return {
           ...e,
           label: bits.join(" "),
           labelStyle: { fill: "#8a94a8", fontSize: 10 },
           labelBgStyle: { fill: "#131822" },
           selected: e.id === selectedEdgeId,
+          // Asynchronous links are drawn dashed and still, because they are not
+          // on anybody's clock -- the picture should say so.
+          animated: cfg.kind !== "async-publish",
+          style:
+            cfg.kind === "async-publish"
+              ? { strokeDasharray: "2 4", stroke: "#6ea8fe" }
+              : undefined,
         }
       }),
     [edges, selectedEdgeId],
@@ -207,8 +231,11 @@ function Workspace({ scenario }: { scenario: Scenario }) {
             // -- but always overridable, because a mistake you cannot express is
             // one the engine can never teach you about.
             data: {
+              kind: "sync-request",
               carries: kind ? defaultCarries(kind) : "all",
               fanout: 1,
+              circuitBreaker: false,
+              timeoutMs: 2000,
             } satisfies EdgeConfig,
           },
           eds,
@@ -309,7 +336,74 @@ function Workspace({ scenario }: { scenario: Scenario }) {
     setResult(null)
     setEnqueued(false)
     setProfileIndex(0)
+    setStashed(null)
   }, [setNodes, setEdges, scenario])
+
+  /** Load the scenario's worked solution onto the canvas, laid out. */
+  const showSolution = useCallback(() => {
+    if (!stashed) setStashed({ nodes, edges })
+    const positions = layoutGraph(scenario.reference)
+    setNodes([
+      {
+        id: CLIENT_NODE_ID,
+        type: "client",
+        position: positions[CLIENT_NODE_ID] ?? { x: 20, y: 150 },
+        data: { rps: scenario.loadProfiles[0]?.peakRps ?? 0 },
+        deletable: false,
+      } satisfies ClientNodeType,
+      ...scenario.reference.components.map(
+        (component) =>
+          ({
+            id: component.id,
+            type: "component",
+            position: positions[component.id] ?? { x: 0, y: 0 },
+            data: { component },
+          }) satisfies ComponentNodeType,
+      ),
+    ])
+    setEdges(
+      scenario.reference.edges
+        // Replication and CDC are modelled but not drawn as request arrows;
+        // showing them as ordinary edges would misrepresent the request path.
+        .filter((e) => e.kind === "sync-request" || e.kind === "async-publish")
+        .map((e) => ({
+          id: e.id,
+          source: e.from,
+          target: e.to,
+          animated: e.kind === "sync-request",
+          data: {
+            kind: e.kind === "async-publish" ? "async-publish" : "sync-request",
+            carries: e.carries ?? "all",
+            fanout: e.fanout ?? 1,
+            circuitBreaker: e.circuitBreaker ?? false,
+            timeoutMs: e.timeoutMs ?? 2000,
+          } satisfies EdgeConfig,
+        })),
+    )
+    setSelectedId(null)
+    setSelectedEdgeId(null)
+    setResult(null)
+    // fitView only runs on mount, so replacing the whole board leaves the
+    // viewport wherever it was -- usually zoomed into two of ten nodes. The
+    // frame's delay lets React Flow measure the new nodes before it fits them.
+    requestAnimationFrame(() =>
+      fitView({ padding: 0.2, maxZoom: 1, duration: 300 }),
+    )
+  }, [scenario, nodes, edges, stashed, setNodes, setEdges, fitView])
+
+  /** Put your own design back exactly as it was. */
+  const restoreMyDesign = useCallback(() => {
+    if (!stashed) return
+    setNodes(stashed.nodes)
+    setEdges(stashed.edges)
+    setStashed(null)
+    setSelectedId(null)
+    setSelectedEdgeId(null)
+    setResult(null)
+    requestAnimationFrame(() =>
+      fitView({ padding: 0.2, maxZoom: 1, duration: 300 }),
+    )
+  }, [stashed, setNodes, setEdges, fitView])
 
   const run = useCallback(
     (probe: "pressure" | "security" | "observability" = "pressure") => {
@@ -493,7 +587,23 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           </div>
         </div>
 
-        <div className="border-line bg-panel/60 shrink-0 border-t p-3">
+        <div className="border-line bg-panel/60 shrink-0 space-y-2 border-t p-3">
+          {stashed ? (
+            <button
+              onClick={restoreMyDesign}
+              className="border-accent/40 bg-accent/15 text-accent hover:bg-accent/25 flex w-full items-center justify-center gap-1.5 rounded-lg border py-2 text-[12px] font-medium transition-colors"
+            >
+              <Undo2 size={12} /> Back to my design
+            </button>
+          ) : (
+            <button
+              onClick={showSolution}
+              title="Loads a build that passes. Your own design is kept."
+              className="border-line text-fog hover:text-chalk hover:border-fog/50 flex w-full items-center justify-center gap-1.5 rounded-lg border py-2 text-[12px] transition-colors"
+            >
+              <Lightbulb size={12} /> See a solution
+            </button>
+          )}
           <button
             onClick={resetBoard}
             className="border-line text-fog hover:text-chalk hover:border-fog/50 flex w-full items-center justify-center gap-1.5 rounded-lg border py-2 text-[12px] transition-colors"
@@ -567,6 +677,24 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           </button>
         </div>
 
+        {stashed && (
+          <div className="border-accent/30 bg-accent/10 flex items-center gap-2 border-b px-4 py-2 text-[12px]">
+            <Lightbulb size={13} className="text-accent shrink-0" />
+            <span className="text-chalk">
+              This is <strong>a</strong> solution, not <strong>the</strong>{" "}
+              solution — most of these have several. Poke at it: change instance
+              counts, pull a component out, run the pressure test and see what
+              it was buying.
+            </span>
+            <button
+              onClick={restoreMyDesign}
+              className="text-accent hover:text-chalk ml-auto shrink-0 underline underline-offset-2"
+            >
+              Back to my design
+            </button>
+          </div>
+        )}
+
         <div ref={wrapper} className="min-h-0 flex-1">
           <ReactFlow
             nodes={decoratedNodes}
@@ -619,9 +747,15 @@ function Workspace({ scenario }: { scenario: Scenario }) {
             from={labelOf(selectedEdge.source)}
             to={labelOf(selectedEdge.target)}
             config={{
+              kind:
+                (selectedEdge.data?.kind as EdgeConfig["kind"]) ??
+                "sync-request",
               carries:
                 (selectedEdge.data?.carries as EdgeConfig["carries"]) ?? "all",
               fanout: (selectedEdge.data?.fanout as number) ?? 1,
+              circuitBreaker:
+                (selectedEdge.data?.circuitBreaker as boolean) ?? false,
+              timeoutMs: (selectedEdge.data?.timeoutMs as number) ?? 2000,
             }}
             onChange={(next) => updateEdge(selectedEdge.id, next)}
             onDelete={() => deleteEdge(selectedEdge.id)}
