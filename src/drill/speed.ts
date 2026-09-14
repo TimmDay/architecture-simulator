@@ -1,4 +1,5 @@
 import type { Card, CardState, SpeedVariant } from "./types"
+import { cardWeight } from "./queue"
 
 /**
  * Speed mode: recognise the right answer among four, rather than produce it.
@@ -21,6 +22,30 @@ export function speedItems(cards: Card[]): SpeedItem[] {
 }
 
 /**
+ * Bias a Speed session toward what interviews actually ask.
+ *
+ * Safe here in a way it would not be in the review queue: Speed does not drive
+ * the schedule, so weighting what you see cannot corrupt the algorithm's model
+ * of your memory. A weight-3 topic appears about twice as often as a weight-1
+ * one -- noticeably more, not to the exclusion of everything else, since a deck
+ * that only ever shows you nine topics stops teaching after a week.
+ */
+export function weightedOrder(
+  items: SpeedItem[],
+  pick: () => number,
+): SpeedItem[] {
+  const scored = items.map((item) => ({
+    item,
+    // Random key raised to a power that falls as weight rises: higher weight
+    // tends to sort earlier, without ever fully excluding anything.
+    key: Math.pow(pick(), 3 / cardWeight(item.card)),
+  }))
+  scored.sort((a, b) => b.key - a.key)
+  // de-adjacent only: shuffling here would throw away the weighting.
+  return deAdjacent(scored.map((s) => s.item))
+}
+
+/**
  * Order items so that two questions about the same card never sit next to each
  * other. Asking three facets of CAP in a row is a worse session than spreading
  * them out, and the multi-variant cards are exactly the ones it would happen to.
@@ -36,6 +61,17 @@ export function spreadItems(
     pool[i] = pool[j]!
     pool[j] = a
   }
+  return deAdjacent(pool)
+}
+
+/**
+ * Move questions about the same card apart, preserving the order otherwise.
+ *
+ * Split out from `spreadItems` because weighted ordering has to survive it.
+ * Shuffling after sorting by weight discards the weighting entirely, which is
+ * exactly what this used to do.
+ */
+export function deAdjacent(pool: SpeedItem[]): SpeedItem[] {
   const out: SpeedItem[] = []
   const held: SpeedItem[] = []
   for (const item of pool) {

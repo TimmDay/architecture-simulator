@@ -1,5 +1,25 @@
 import type { Card, CardState } from "./types"
 import { isDue } from "./sm2"
+import { topicWeight, type Weight } from "~/topics"
+
+/**
+ * How much this card matters in an interview: the highest weight of any topic
+ * it teaches.
+ *
+ * Deliberately NOT a multiplier on review intervals. Spaced repetition already
+ * schedules by how well you know a card; if importance also stretched or
+ * compressed intervals the two signals would fight, and a card you know cold
+ * would keep interrupting because somebody labelled it important -- which is
+ * exactly what the algorithm exists to prevent. Importance decides what you
+ * SEE when there is a choice, not how memory is modelled.
+ */
+export function cardWeight(card: Card): Weight {
+  // The PRIMARY topic, not the maximum across all of them. Taking the max let
+  // one tangentially-mentioned topic promote a whole card, which rated 76% of
+  // the deck as interview-critical -- at which point the label said nothing.
+  const primary = card.topicIds[0]
+  return primary ? topicWeight(primary) : 2
+}
 
 /**
  * Queue policy.
@@ -44,8 +64,18 @@ export function buildQueue(
     const aEnq = a.state.enqueuedBy ? 0 : 1
     const bEnq = b.state.enqueuedBy ? 0 : 1
     if (aEnq !== bEnq) return aEnq - bEnq
-    return new Date(a.state.dueAt).getTime() - new Date(b.state.dueAt).getTime()
+    // Oldest debt first, and where two cards fell due together the one that
+    // matters more in an interview goes first -- which only decides order, and
+    // only bites when the session cap cuts the queue short.
+    const byDue =
+      new Date(a.state.dueAt).getTime() - new Date(b.state.dueAt).getTime()
+    if (Math.abs(byDue) > 60_000) return byDue
+    return cardWeight(b.card) - cardWeight(a.card)
   })
+
+  // New cards are introduced in importance order, so a short session spends its
+  // introductions on what an interviewer is most likely to ask.
+  fresh.sort((a, b) => cardWeight(b.card) - cardWeight(a.card))
 
   const reviews = seen.slice(0, policy.reviewsPerSession)
   const introductions = fresh.slice(0, policy.newPerSession)

@@ -7,7 +7,7 @@ import {
   optionsFor,
   recordSpeedAnswer,
   speedItems,
-  spreadItems,
+  weightedOrder,
   tallySpeed,
   EMPTY_STATS,
   type SpeedItem,
@@ -31,7 +31,7 @@ export function SpeedSession({ cards, states }: Props) {
   // no two questions about the same card sit next to each other.
   const order = useMemo(
     () =>
-      spreadItems(
+      weightedOrder(
         speedItems(
           cards.filter((c) => deck === "all" || (c.deck ?? "core") === deck),
         ),

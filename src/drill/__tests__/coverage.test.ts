@@ -69,14 +69,14 @@ describe("deck coverage", () => {
     ).toEqual([])
   })
 
-  it("has no orphaned topics outside the long tail", () => {
-    // Not every topic needs a card yet, but the gap should be visible rather
-    // than silently growing.
+  it("has a card for every topic in the taxonomy", () => {
+    // The deck now covers all of it, so this is a ratchet: adding a topic
+    // without a card fails here rather than leaving a silently dead loop.
     const uncovered = ALL_TOPIC_IDS.filter((t) => !coveredByCards.has(t))
     expect(
-      uncovered.length,
-      `${uncovered.length} topics still have no card: ${uncovered.join(", ")}`,
-    ).toBeLessThan(45)
+      uncovered,
+      `${uncovered.length} topics have no card: ${uncovered.join(", ")}`,
+    ).toEqual([])
   })
 
   it("weights the deck toward what the simulator leans on", () => {

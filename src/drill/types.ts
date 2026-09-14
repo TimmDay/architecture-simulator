@@ -32,6 +32,11 @@ export type Card = {
    * below the model answer on the flip, never used for grading.
    */
   emFraming?: string
+  /**
+   * What this card teaches. The FIRST one is the primary topic and is what the
+   * card's interview weighting comes from -- a card about IaC that happens to
+   * mention rollback should not inherit rollback's importance.
+   */
   topicIds: TopicId[]
   tier: 1 | 2 | 3
   /**

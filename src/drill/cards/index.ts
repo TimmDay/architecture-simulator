@@ -13,6 +13,12 @@ import { kafkaCards } from "./kafka"
 import { productionCards } from "./production"
 import { gapCards } from "./gaps"
 import { vocabularyCards } from "./vocabulary"
+import { estimationCards } from "./estimation"
+import { realtimeConsensusCards } from "./realtime-consensus"
+import { storageEngineCards } from "./storage-engines"
+import { designCards } from "./designs"
+import { interviewMethodCards } from "./interview-method"
+import { stylesAndStoresCards } from "./styles-and-stores"
 
 /**
  * The deck.
@@ -37,6 +43,12 @@ export const ALL_CARDS: Card[] = [
   ...productionCards,
   ...gapCards,
   ...vocabularyCards,
+  ...estimationCards,
+  ...realtimeConsensusCards,
+  ...storageEngineCards,
+  ...designCards,
+  ...interviewMethodCards,
+  ...stylesAndStoresCards,
 ]
 
 const seen = new Set<string>()
