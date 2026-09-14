@@ -2,126 +2,6 @@ import type { ArchitectureGraph, Scenario } from "../types"
 import { CLIENT_NODE_ID } from "../types"
 
 /**
- * Scenario 6 -- partitioned data, and the arithmetic that sharding does not fix.
- *
- * Sharding assumes the keys distribute. Real workloads are Zipfian: a handful of
- * accounts are enormous, a handful of templates are used by everybody, and the
- * mean partition load looks healthy right up to the incident. Adding shards adds
- * capacity everywhere except where the load actually is.
- *
- * The second lesson is what you give up. Once the data is split, a query that
- * does not carry the shard key has to ask every shard and wait for the slowest,
- * and a transaction spanning two shards has no cheap way to stay atomic. Both
- * are consequences of the shard key, which is why choosing it is the decision
- * that matters and the one that is hardest to reverse.
- *
- * The hot partition here is expressed as edge weights on the router -- one shard
- * deliberately taking several times its share, which is what a celebrity account
- * looks like from the database's point of view.
- */
-export const aBillionDesigns: Scenario = {
-  id: "06-a-billion-designs",
-  title: "A Billion Designs",
-  family: "data-intensive",
-  level: 4,
-
-  features: ["user-accounts", "search", "reporting"],
-
-  brief: `There are over a billion designs. One database cannot hold them, and
-has not been able to for two years.
-
-The data is already split across shards by account. Most accounts are one
-person with forty designs. A few are enterprises with hundreds of thousands of
-users, and one of those is about to run a campaign.
-
-Two things are causing pain. A single enterprise account is now large enough
-that its shard is doing several times the work of the others, and the team is
-out of ideas that do not involve downtime. And the "designs shared with me"
-screen has to ask every shard, because sharing crosses account boundaries and
-the shard key does not.
-
-Nobody wants to hear the phrase "resharding" this quarter.`,
-
-  requirements: {
-    // Higher than the earlier levels on purpose: a hot shard going six
-    // times slower is survivable, not invisible, and the budget reflects that.
-    p99Ms: 350,
-    availability: 0.9995,
-    monthlyBudgetUsd: 4_500,
-    durability: "durable",
-    consistency: "read-your-writes",
-    compliance: ["pii"],
-  },
-
-  loadProfiles: [
-    {
-      id: "normal",
-      label: "Normal load",
-      peakRps: 1_000,
-      readWriteRatio: 6,
-      shape: "diurnal",
-      geography: "multi-region",
-      cacheableReadFraction: 0.5,
-    },
-    {
-      id: "busy",
-      label: "Term starts",
-      peakRps: 3_000,
-      readWriteRatio: 5,
-      shape: "diurnal",
-      geography: "global",
-      cacheableReadFraction: 0.45,
-    },
-    {
-      id: "campaign",
-      label: "The enterprise account runs its campaign",
-      peakRps: 6_000,
-      readWriteRatio: 4,
-      shape: "spiky",
-      geography: "global",
-      cacheableReadFraction: 0.4,
-    },
-  ],
-
-  faultScript: [
-    [{ kind: "node-down", componentId: "app", instances: 2 }],
-    // The hot shard goes slow before it goes down -- and it takes the requests
-    // that had nothing to do with it along for the ride.
-    [{ kind: "latency-spike", componentId: "shard-hot", multiplier: 6 }],
-    [{ kind: "node-down", componentId: "shard-hot", instances: 1 }],
-  ],
-
-  availableKinds: [
-    "web-client",
-    "cdn",
-    "load-balancer",
-    "api-gateway",
-    "app-server",
-    "shard-router",
-    "nosql-node",
-    "sql-primary",
-    "sql-replica",
-    "cache",
-    "search-index",
-    "queue",
-    "worker",
-  ],
-
-  topicIds: [
-    "partitioning.strategies",
-    "partitioning.shard-key",
-    "partitioning.hot-keys",
-    "partitioning.rebalancing",
-    "partitioning.cross-shard-queries",
-    "partitioning.global-invariants",
-    "partitioning.consistent-hashing",
-    "consistency.quorum-rw",
-    "caching.cache-aside",
-    "cost.right-sizing",
-  ],
-}
-
-/**
  * Reference solution.
  *
  * Three shards behind a router, with the hot account's shard given its own
@@ -313,4 +193,125 @@ export const aBillionDesignsReference: ArchitectureGraph = {
       circuitBreaker: true,
     },
   ],
+}
+
+/**
+ * Scenario 6 -- partitioned data, and the arithmetic that sharding does not fix.
+ *
+ * Sharding assumes the keys distribute. Real workloads are Zipfian: a handful of
+ * accounts are enormous, a handful of templates are used by everybody, and the
+ * mean partition load looks healthy right up to the incident. Adding shards adds
+ * capacity everywhere except where the load actually is.
+ *
+ * The second lesson is what you give up. Once the data is split, a query that
+ * does not carry the shard key has to ask every shard and wait for the slowest,
+ * and a transaction spanning two shards has no cheap way to stay atomic. Both
+ * are consequences of the shard key, which is why choosing it is the decision
+ * that matters and the one that is hardest to reverse.
+ *
+ * The hot partition here is expressed as edge weights on the router -- one shard
+ * deliberately taking several times its share, which is what a celebrity account
+ * looks like from the database's point of view.
+ */
+export const aBillionDesigns: Scenario = {
+  id: "06-a-billion-designs",
+  title: "A Billion Designs",
+  family: "data-intensive",
+  level: 4,
+
+  features: ["user-accounts", "search", "reporting"],
+
+  brief: `There are over a billion designs. One database cannot hold them, and
+has not been able to for two years.
+
+The data is already split across shards by account. Most accounts are one
+person with forty designs. A few are enterprises with hundreds of thousands of
+users, and one of those is about to run a campaign.
+
+Two things are causing pain. A single enterprise account is now large enough
+that its shard is doing several times the work of the others, and the team is
+out of ideas that do not involve downtime. And the "designs shared with me"
+screen has to ask every shard, because sharing crosses account boundaries and
+the shard key does not.
+
+Nobody wants to hear the phrase "resharding" this quarter.`,
+
+  requirements: {
+    // Higher than the earlier levels on purpose: a hot shard going six
+    // times slower is survivable, not invisible, and the budget reflects that.
+    p99Ms: 350,
+    availability: 0.9995,
+    monthlyBudgetUsd: 4_500,
+    durability: "durable",
+    consistency: "read-your-writes",
+    compliance: ["pii"],
+  },
+
+  loadProfiles: [
+    {
+      id: "normal",
+      label: "Normal load",
+      peakRps: 1_000,
+      readWriteRatio: 6,
+      shape: "diurnal",
+      geography: "multi-region",
+      cacheableReadFraction: 0.5,
+    },
+    {
+      id: "busy",
+      label: "Term starts",
+      peakRps: 3_000,
+      readWriteRatio: 5,
+      shape: "diurnal",
+      geography: "global",
+      cacheableReadFraction: 0.45,
+    },
+    {
+      id: "campaign",
+      label: "The enterprise account runs its campaign",
+      peakRps: 6_000,
+      readWriteRatio: 4,
+      shape: "spiky",
+      geography: "global",
+      cacheableReadFraction: 0.4,
+    },
+  ],
+
+  faultScript: [
+    [{ kind: "node-down", componentId: "app", instances: 2 }],
+    // The hot shard goes slow before it goes down -- and it takes the requests
+    // that had nothing to do with it along for the ride.
+    [{ kind: "latency-spike", componentId: "shard-hot", multiplier: 6 }],
+    [{ kind: "node-down", componentId: "shard-hot", instances: 1 }],
+  ],
+
+  availableKinds: [
+    "web-client",
+    "cdn",
+    "load-balancer",
+    "api-gateway",
+    "app-server",
+    "shard-router",
+    "nosql-node",
+    "sql-primary",
+    "sql-replica",
+    "cache",
+    "search-index",
+    "queue",
+    "worker",
+  ],
+
+  topicIds: [
+    "partitioning.strategies",
+    "partitioning.shard-key",
+    "partitioning.hot-keys",
+    "partitioning.rebalancing",
+    "partitioning.cross-shard-queries",
+    "partitioning.global-invariants",
+    "partitioning.consistent-hashing",
+    "consistency.quorum-rw",
+    "caching.cache-aside",
+    "cost.right-sizing",
+  ],
+  reference: aBillionDesignsReference,
 }

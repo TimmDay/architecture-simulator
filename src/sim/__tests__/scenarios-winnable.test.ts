@@ -25,6 +25,7 @@ import {
 } from "../scenarios/07-the-viral-deck"
 import { TOPICS } from "~/topics"
 import { CATALOGUE } from "../catalogue"
+import { CLIENT_NODE_ID } from "../types"
 
 const CASES = [
   { scenario: firstRealCustomers, graph: firstRealCustomersReference },
@@ -64,6 +65,17 @@ describe.each(CASES)("$scenario.title", ({ scenario, graph }) => {
   it("tags only real topic ids", () => {
     for (const t of scenario.topicIds)
       expect(TOPICS[t], `unknown topic: ${t}`).toBeDefined()
+  })
+
+  it("never uses the reserved client id for a component", () => {
+    // "client" is the implicit traffic source. A component taking that id
+    // becomes an edge from the client to itself, and the entry point stops
+    // meaning what the engine thinks it means.
+    for (const c of graph.components) {
+      expect(c.id, "a component may not be called 'client'").not.toBe(
+        CLIENT_NODE_ID,
+      )
+    }
   })
 
   it("targets its fault script at components that exist", () => {
