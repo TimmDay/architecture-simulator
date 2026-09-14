@@ -396,6 +396,14 @@ export type Scenario = {
   declarations?: Declaration[]
   /** The palette, scoped deliberately. Decoys are part of the lesson. */
   availableKinds: ComponentKind[]
+  /**
+   * A build that passes every requirement.
+   *
+   * Not "the" answer -- most scenarios have several -- but a worked one, and
+   * the fixture CI grades to make sure the scenario stays winnable. Exposed to
+   * the player so it can be inspected after a real attempt.
+   */
+  reference: ArchitectureGraph
   topicIds: TopicId[]
 }
 

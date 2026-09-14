@@ -2,135 +2,6 @@ import type { ArchitectureGraph, Scenario } from "../types"
 import { CLIENT_NODE_ID } from "../types"
 
 /**
- * Scenario 3 -- two hard problems in one product.
- *
- * The payment half teaches the thing that separates people who have run money
- * systems from people who have not: a timeout is not a failure, it is an
- * unknown, and the only safe way to retry an unknown is with an idempotency
- * key. It also teaches that a third party's availability is a ceiling on yours
- * wherever it sits on the request path.
- *
- * The receipt half teaches where work belongs. OCR costs hundreds of
- * milliseconds of CPU per image -- an order of magnitude more than serving a
- * page -- so doing it inside the request both blows the latency budget and
- * burns the app tier's capacity. And the images themselves belong in object
- * storage, not in rows.
- *
- * The two halves share one lesson worth having: the user should not wait for
- * work that does not have to happen now.
- */
-export const receiptsAndPayments: Scenario = {
-  id: "03-receipts-and-payments",
-  title: "Receipts and Payments",
-  family: "event-driven",
-  level: 3,
-
-  brief: `You build expenses software for small businesses. It does two things.
-
-People pay their suppliers through it. You do not touch card details yourself --
-a third-party payment provider does the actual money movement, and you call
-their API. They are reliable, mostly. They are not fast.
-
-People also photograph receipts with their phone, often several megabytes each,
-frequently on bad hotel wifi. Those images get read by OCR and filed as
-historical transactions against the right supplier and date, so the year-end
-accounts add up.
-
-Users will forgive a receipt taking a minute to appear. They will not forgive
-being charged twice, and they will not forgive a receipt going missing.
-
-It is January, and the tax deadline is in three weeks.`,
-
-  features: [
-    "user-accounts",
-    "file-uploads",
-    "background-processing",
-    "payments",
-    "reporting",
-  ],
-
-  requirements: {
-    // The user-facing request. OCR runs afterwards and is not on this clock.
-    p99Ms: 400,
-    availability: 0.999,
-    monthlyBudgetUsd: 900,
-    durability: "durable",
-    consistency: "read-your-writes",
-    compliance: ["pii", "pci"],
-  },
-
-  loadProfiles: [
-    {
-      id: "ordinary",
-      label: "An ordinary Tuesday",
-      peakRps: 60,
-      readWriteRatio: 3,
-      shape: "steady",
-      geography: "single-region",
-      cacheableReadFraction: 0.35,
-    },
-    {
-      id: "month-end",
-      label: "Month end",
-      peakRps: 200,
-      readWriteRatio: 2,
-      shape: "diurnal",
-      geography: "single-region",
-      cacheableReadFraction: 0.3,
-    },
-    {
-      id: "tax-deadline",
-      label: "Tax deadline, everybody at once",
-      peakRps: 600,
-      readWriteRatio: 2, // a year of receipts, uploaded in one evening
-      shape: "spiky",
-      geography: "single-region",
-      cacheableReadFraction: 0.2,
-    },
-  ],
-
-  faultScript: [
-    [{ kind: "node-down", componentId: "app", instances: 1 }],
-    // The provider does not go down. It goes slow, which is worse, because
-    // nothing errors and your threads pile up waiting.
-    [{ kind: "latency-spike", componentId: "payments", multiplier: 8 }],
-    // Somebody photographs their thumb. The file is corrupt and always will be.
-    [{ kind: "poison-message", componentId: "ocr-queue" }],
-  ],
-
-  availableKinds: [
-    "web-client",
-    "cdn",
-    "load-balancer",
-    "api-gateway",
-    "app-server",
-    "third-party-api",
-    "queue",
-    "worker",
-    "object-store",
-    "cache",
-    "sql-primary",
-    "sql-replica",
-  ],
-
-  topicIds: [
-    "transactions.idempotency",
-    "transactions.outbox",
-    "reliability.circuit-breaker",
-    "reliability.retries-and-jitter",
-    "reliability.graceful-degradation",
-    "messaging.queue-vs-log",
-    "messaging.dlq",
-    "messaging.backpressure",
-    "messaging.delivery-semantics",
-    "styles.event-driven",
-    "data-stores.relational-vs-document",
-    "security.pii-and-residency",
-    "security.encryption-at-rest",
-  ],
-}
-
-/**
  * Reference solution.
  *
  * The shape of the answer: the phone uploads straight to object storage so
@@ -350,4 +221,134 @@ export const receiptsAndPaymentsReference: ArchitectureGraph = {
       jitter: true,
     },
   ],
+}
+
+/**
+ * Scenario 3 -- two hard problems in one product.
+ *
+ * The payment half teaches the thing that separates people who have run money
+ * systems from people who have not: a timeout is not a failure, it is an
+ * unknown, and the only safe way to retry an unknown is with an idempotency
+ * key. It also teaches that a third party's availability is a ceiling on yours
+ * wherever it sits on the request path.
+ *
+ * The receipt half teaches where work belongs. OCR costs hundreds of
+ * milliseconds of CPU per image -- an order of magnitude more than serving a
+ * page -- so doing it inside the request both blows the latency budget and
+ * burns the app tier's capacity. And the images themselves belong in object
+ * storage, not in rows.
+ *
+ * The two halves share one lesson worth having: the user should not wait for
+ * work that does not have to happen now.
+ */
+export const receiptsAndPayments: Scenario = {
+  id: "03-receipts-and-payments",
+  title: "Receipts and Payments",
+  family: "event-driven",
+  level: 3,
+
+  brief: `You build expenses software for small businesses. It does two things.
+
+People pay their suppliers through it. You do not touch card details yourself --
+a third-party payment provider does the actual money movement, and you call
+their API. They are reliable, mostly. They are not fast.
+
+People also photograph receipts with their phone, often several megabytes each,
+frequently on bad hotel wifi. Those images get read by OCR and filed as
+historical transactions against the right supplier and date, so the year-end
+accounts add up.
+
+Users will forgive a receipt taking a minute to appear. They will not forgive
+being charged twice, and they will not forgive a receipt going missing.
+
+It is January, and the tax deadline is in three weeks.`,
+
+  features: [
+    "user-accounts",
+    "file-uploads",
+    "background-processing",
+    "payments",
+    "reporting",
+  ],
+
+  requirements: {
+    // The user-facing request. OCR runs afterwards and is not on this clock.
+    p99Ms: 400,
+    availability: 0.999,
+    monthlyBudgetUsd: 900,
+    durability: "durable",
+    consistency: "read-your-writes",
+    compliance: ["pii", "pci"],
+  },
+
+  loadProfiles: [
+    {
+      id: "ordinary",
+      label: "An ordinary Tuesday",
+      peakRps: 60,
+      readWriteRatio: 3,
+      shape: "steady",
+      geography: "single-region",
+      cacheableReadFraction: 0.35,
+    },
+    {
+      id: "month-end",
+      label: "Month end",
+      peakRps: 200,
+      readWriteRatio: 2,
+      shape: "diurnal",
+      geography: "single-region",
+      cacheableReadFraction: 0.3,
+    },
+    {
+      id: "tax-deadline",
+      label: "Tax deadline, everybody at once",
+      peakRps: 600,
+      readWriteRatio: 2, // a year of receipts, uploaded in one evening
+      shape: "spiky",
+      geography: "single-region",
+      cacheableReadFraction: 0.2,
+    },
+  ],
+
+  faultScript: [
+    [{ kind: "node-down", componentId: "app", instances: 1 }],
+    // The provider does not go down. It goes slow, which is worse, because
+    // nothing errors and your threads pile up waiting.
+    [{ kind: "latency-spike", componentId: "payments", multiplier: 8 }],
+    // Somebody photographs their thumb. The file is corrupt and always will be.
+    [{ kind: "poison-message", componentId: "ocr-queue" }],
+  ],
+
+  availableKinds: [
+    "web-client",
+    "cdn",
+    "load-balancer",
+    "api-gateway",
+    "app-server",
+    "third-party-api",
+    "queue",
+    "worker",
+    "object-store",
+    "cache",
+    "sql-primary",
+    "sql-replica",
+  ],
+
+  topicIds: [
+    "transactions.idempotency",
+    "transactions.outbox",
+    "reliability.circuit-breaker",
+    "reliability.retries-and-jitter",
+    "reliability.graceful-degradation",
+    "messaging.queue-vs-log",
+    "messaging.dlq",
+    "messaging.backpressure",
+    "messaging.delivery-semantics",
+    "styles.event-driven",
+    "data-stores.relational-vs-document",
+    "security.pii-and-residency",
+    "security.encryption-at-rest",
+  ],
+  reference: receiptsAndPaymentsReference,
 }

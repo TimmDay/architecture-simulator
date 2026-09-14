@@ -2,6 +2,88 @@ import type { ArchitectureGraph, Scenario } from "../types"
 import { CLIENT_NODE_ID } from "../types"
 
 /**
+ * The reference solution. This is a test fixture, not something shown to the
+ * player -- it pins "there exists a build that passes every requirement", so a
+ * catalogue change that quietly makes the scenario unwinnable fails CI.
+ *
+ * Cost: LB $18 + 4 x app $117 + primary $124 = $259/mo, inside the $300 budget.
+ * Adding a read replica takes it to $383 and fails. That is the intended trap.
+ */
+export const firstRealCustomersReference: ArchitectureGraph = {
+  components: [
+    {
+      id: "lb",
+      kind: "load-balancer",
+      label: "Public load balancer",
+      instances: 1,
+      region: "eu-west-1",
+      config: { vendor: "alb", availabilityZones: 2 },
+    },
+    {
+      id: "app",
+      kind: "app-server",
+      label: "Helpdesk app",
+      // Four, not three: at 400 rps peak the tier must still serve peak with one
+      // instance gone. 4 x 200 = 800; lose one and 600 remains, rho = 0.67.
+      instances: 4,
+      region: "eu-west-1",
+      config: {
+        vendor: "ecs",
+        availabilityZones: 2,
+        // Stateless via signed tokens. This is the ONLY answer to session
+        // affinity that fits: a shared cache on the critical path either lowers
+        // availability below the bar (one instance) or breaks the budget (two).
+        sessionStore: "none",
+      },
+    },
+    {
+      id: "db",
+      kind: "sql-primary",
+      label: "Tickets database",
+      instances: 1,
+      region: "eu-west-1",
+      config: {
+        vendor: "rds",
+        availabilityZones: 1,
+        consistency: "strong",
+        // Durability requirement is met by backups, NOT by a replica. A replica
+        // is an availability tool and this scenario's availability bar does not
+        // need one.
+        backups: { enabled: true, rpoMinutes: 5 },
+        encryptedAtRest: true,
+      },
+    },
+  ],
+
+  edges: [
+    {
+      id: "client-lb",
+      from: CLIENT_NODE_ID,
+      to: "lb",
+      kind: "sync-request",
+      carries: "all",
+    },
+    {
+      id: "lb-app",
+      from: "lb",
+      to: "app",
+      kind: "sync-request",
+      carries: "all",
+    },
+    {
+      id: "app-db",
+      from: "app",
+      to: "db",
+      kind: "sync-request",
+      carries: "all",
+      timeoutMs: 2_000,
+      retries: 2,
+      jitter: true,
+    },
+  ],
+}
+
+/**
  * Scenario 1 -- the tutorial.
  *
  * Teaching goal, in one line: **redundancy where it is cheap, backups where it
@@ -124,86 +206,5 @@ You have $300 a month. Not $3,000. Build something you can defend.`,
     "cost.unit-economics",
     "cost.right-sizing",
   ],
-}
-
-/**
- * The reference solution. This is a test fixture, not something shown to the
- * player -- it pins "there exists a build that passes every requirement", so a
- * catalogue change that quietly makes the scenario unwinnable fails CI.
- *
- * Cost: LB $18 + 4 x app $117 + primary $124 = $259/mo, inside the $300 budget.
- * Adding a read replica takes it to $383 and fails. That is the intended trap.
- */
-export const firstRealCustomersReference: ArchitectureGraph = {
-  components: [
-    {
-      id: "lb",
-      kind: "load-balancer",
-      label: "Public load balancer",
-      instances: 1,
-      region: "eu-west-1",
-      config: { vendor: "alb", availabilityZones: 2 },
-    },
-    {
-      id: "app",
-      kind: "app-server",
-      label: "Helpdesk app",
-      // Four, not three: at 400 rps peak the tier must still serve peak with one
-      // instance gone. 4 x 200 = 800; lose one and 600 remains, rho = 0.67.
-      instances: 4,
-      region: "eu-west-1",
-      config: {
-        vendor: "ecs",
-        availabilityZones: 2,
-        // Stateless via signed tokens. This is the ONLY answer to session
-        // affinity that fits: a shared cache on the critical path either lowers
-        // availability below the bar (one instance) or breaks the budget (two).
-        sessionStore: "none",
-      },
-    },
-    {
-      id: "db",
-      kind: "sql-primary",
-      label: "Tickets database",
-      instances: 1,
-      region: "eu-west-1",
-      config: {
-        vendor: "rds",
-        availabilityZones: 1,
-        consistency: "strong",
-        // Durability requirement is met by backups, NOT by a replica. A replica
-        // is an availability tool and this scenario's availability bar does not
-        // need one.
-        backups: { enabled: true, rpoMinutes: 5 },
-        encryptedAtRest: true,
-      },
-    },
-  ],
-
-  edges: [
-    {
-      id: "client-lb",
-      from: CLIENT_NODE_ID,
-      to: "lb",
-      kind: "sync-request",
-      carries: "all",
-    },
-    {
-      id: "lb-app",
-      from: "lb",
-      to: "app",
-      kind: "sync-request",
-      carries: "all",
-    },
-    {
-      id: "app-db",
-      from: "app",
-      to: "db",
-      kind: "sync-request",
-      carries: "all",
-      timeoutMs: 2_000,
-      retries: 2,
-      jitter: true,
-    },
-  ],
+  reference: firstRealCustomersReference,
 }

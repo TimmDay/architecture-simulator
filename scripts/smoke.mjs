@@ -197,6 +197,37 @@ console.log("after reset:", JSON.stringify(after))
 if (after.nodes !== 1 || after.edges !== 0)
   errs.push("reset did not clear the board")
 
+// "See a solution" must load a build that actually passes, and must give the
+// player their own work back afterwards.
+const beforeSolution = await page.evaluate(
+  () => document.querySelectorAll(".react-flow__node").length,
+)
+await page.getByRole("button", { name: /See a solution/i }).click()
+await page.waitForTimeout(1200)
+await page.getByRole("button", { name: /Pressure/i }).click()
+await page.waitForTimeout(900)
+const solutionGrade = await page.evaluate(
+  () =>
+    (document.querySelectorAll("aside")[1]?.innerText ?? "").match(
+      /RESULT\s*\n\s*([A-F])/,
+    )?.[1] ?? "?",
+)
+console.log("shown solution grades:", solutionGrade)
+if (!["A", "B"].includes(solutionGrade)) {
+  errs.push(`the solution shown to the player graded ${solutionGrade}`)
+}
+await page
+  .getByRole("button", { name: /Back to my design/i })
+  .first()
+  .click()
+await page.waitForTimeout(800)
+const restored = await page.evaluate(
+  () => document.querySelectorAll(".react-flow__node").length,
+)
+console.log(`board restored: ${restored} nodes (was ${beforeSolution})`)
+if (restored !== beforeSolution)
+  errs.push("going back did not restore the player's own design")
+
 console.log("errors:", errs.length ? errs.join("\n ") : "(none)")
 await browser.close()
 if (errs.length) process.exit(1)

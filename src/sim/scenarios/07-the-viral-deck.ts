@@ -2,6 +2,165 @@ import type { ArchitectureGraph, Scenario } from "../types"
 import { CLIENT_NODE_ID } from "../types"
 
 /**
+ * Reference solution.
+ *
+ * Published pages are rendered once and served from the edge, so the crowd never
+ * reaches the origin at all. Behind that, a cache with stampede protection, and
+ * a read replica so that public reads cannot compete with the editor for the
+ * primary. The partition round is survived because the read path can answer from
+ * cached state without the store.
+ */
+export const theViralDeckReference: ArchitectureGraph = {
+  components: [
+    {
+      id: "page",
+      kind: "web-client",
+      label: "Published page",
+      instances: 1,
+      region: "global",
+      config: {
+        vendor: "cf-pages",
+        // Pre-rendered: a published page does not need a server to produce it.
+        rendering: "static",
+        clientRetry: "backoff-jitter",
+      },
+    },
+    {
+      id: "cdn",
+      kind: "cdn",
+      label: "CDN",
+      instances: 1,
+      region: "global",
+      config: { vendor: "cloudfront", availabilityZones: 3, ttlSeconds: 600 },
+    },
+    {
+      id: "lb",
+      kind: "load-balancer",
+      label: "Load balancer",
+      instances: 1,
+      region: "us-east-1",
+      config: { vendor: "alb", availabilityZones: 3, rateLimitRps: 100 },
+    },
+    {
+      id: "app",
+      kind: "app-server",
+      label: "Page service",
+      instances: 8,
+      region: "us-east-1",
+      config: {
+        vendor: "ecs",
+        availabilityZones: 3,
+        sessionStore: "none",
+      },
+    },
+    {
+      id: "cache",
+      kind: "cache",
+      label: "Page cache",
+      instances: 3,
+      region: "us-east-1",
+      config: {
+        vendor: "elasticache",
+        availabilityZones: 3,
+        ttlSeconds: 300,
+        // Without this, one expiry sends the entire crowd to the origin at once.
+        stampedeProtection: true,
+      },
+    },
+    {
+      id: "replica",
+      kind: "sql-replica",
+      label: "Read replica",
+      instances: 1,
+      region: "us-east-1",
+      config: { vendor: "rds", availabilityZones: 2, encryptedAtRest: true },
+    },
+    {
+      id: "db",
+      kind: "sql-primary",
+      label: "Designs database",
+      instances: 1,
+      region: "us-east-1",
+      config: {
+        vendor: "rds",
+        availabilityZones: 1,
+        consistency: "strong",
+        standby: true,
+        backups: { enabled: true, rpoMinutes: 10 },
+        encryptedAtRest: true,
+      },
+    },
+  ],
+
+  edges: [
+    {
+      id: "u-page",
+      from: CLIENT_NODE_ID,
+      to: "page",
+      kind: "sync-request",
+      carries: "all",
+    },
+    {
+      id: "page-cdn",
+      from: "page",
+      to: "cdn",
+      kind: "sync-request",
+      carries: "all",
+    },
+    {
+      id: "cdn-lb",
+      from: "cdn",
+      to: "lb",
+      kind: "sync-request",
+      carries: "all",
+    },
+    {
+      id: "lb-app",
+      from: "lb",
+      to: "app",
+      kind: "sync-request",
+      carries: "all",
+    },
+    {
+      id: "app-cache",
+      from: "app",
+      to: "cache",
+      kind: "sync-request",
+      carries: "reads",
+      timeoutMs: 150,
+    },
+    {
+      // Misses go to the replica, so public reads never compete with the editor
+      // for the primary's capacity.
+      id: "cache-db",
+      from: "cache",
+      to: "replica",
+      kind: "sync-request",
+      carries: "reads",
+      timeoutMs: 1_000,
+      circuitBreaker: true,
+    },
+    {
+      id: "app-db",
+      from: "app",
+      to: "db",
+      kind: "sync-request",
+      carries: "writes",
+      timeoutMs: 2_000,
+      retries: 2,
+      jitter: true,
+    },
+    {
+      id: "db-replica",
+      from: "db",
+      to: "replica",
+      kind: "replication",
+      replication: { mode: "async", lagMs: 500 },
+    },
+  ],
+}
+
+/**
  * Scenario 7 -- high-read delivery, and deciding in advance what to give up.
  *
  * Everything here is derived state that tolerates controlled staleness, which
@@ -112,163 +271,5 @@ from cache. Make sure the answer is that it was.`,
     "reliability.bulkheads",
     "frontend.rendering-strategy",
   ],
-}
-
-/**
- * Reference solution.
- *
- * Published pages are rendered once and served from the edge, so the crowd never
- * reaches the origin at all. Behind that, a cache with stampede protection, and
- * a read replica so that public reads cannot compete with the editor for the
- * primary. The partition round is survived because the read path can answer from
- * cached state without the store.
- */
-export const theViralDeckReference: ArchitectureGraph = {
-  components: [
-    {
-      id: "client",
-      kind: "web-client",
-      label: "Published page",
-      instances: 1,
-      region: "global",
-      config: {
-        vendor: "cf-pages",
-        // Pre-rendered: a published page does not need a server to produce it.
-        rendering: "static",
-        clientRetry: "backoff-jitter",
-      },
-    },
-    {
-      id: "cdn",
-      kind: "cdn",
-      label: "CDN",
-      instances: 1,
-      region: "global",
-      config: { vendor: "cloudfront", availabilityZones: 3, ttlSeconds: 600 },
-    },
-    {
-      id: "lb",
-      kind: "load-balancer",
-      label: "Load balancer",
-      instances: 1,
-      region: "us-east-1",
-      config: { vendor: "alb", availabilityZones: 3, rateLimitRps: 100 },
-    },
-    {
-      id: "app",
-      kind: "app-server",
-      label: "Page service",
-      instances: 8,
-      region: "us-east-1",
-      config: {
-        vendor: "ecs",
-        availabilityZones: 3,
-        sessionStore: "none",
-      },
-    },
-    {
-      id: "cache",
-      kind: "cache",
-      label: "Page cache",
-      instances: 3,
-      region: "us-east-1",
-      config: {
-        vendor: "elasticache",
-        availabilityZones: 3,
-        ttlSeconds: 300,
-        // Without this, one expiry sends the entire crowd to the origin at once.
-        stampedeProtection: true,
-      },
-    },
-    {
-      id: "replica",
-      kind: "sql-replica",
-      label: "Read replica",
-      instances: 1,
-      region: "us-east-1",
-      config: { vendor: "rds", availabilityZones: 2, encryptedAtRest: true },
-    },
-    {
-      id: "db",
-      kind: "sql-primary",
-      label: "Designs database",
-      instances: 1,
-      region: "us-east-1",
-      config: {
-        vendor: "rds",
-        availabilityZones: 1,
-        consistency: "strong",
-        standby: true,
-        backups: { enabled: true, rpoMinutes: 10 },
-        encryptedAtRest: true,
-      },
-    },
-  ],
-
-  edges: [
-    {
-      id: "u-client",
-      from: CLIENT_NODE_ID,
-      to: "client",
-      kind: "sync-request",
-      carries: "all",
-    },
-    {
-      id: "client-cdn",
-      from: "client",
-      to: "cdn",
-      kind: "sync-request",
-      carries: "all",
-    },
-    {
-      id: "cdn-lb",
-      from: "cdn",
-      to: "lb",
-      kind: "sync-request",
-      carries: "all",
-    },
-    {
-      id: "lb-app",
-      from: "lb",
-      to: "app",
-      kind: "sync-request",
-      carries: "all",
-    },
-    {
-      id: "app-cache",
-      from: "app",
-      to: "cache",
-      kind: "sync-request",
-      carries: "reads",
-      timeoutMs: 150,
-    },
-    {
-      // Misses go to the replica, so public reads never compete with the editor
-      // for the primary's capacity.
-      id: "cache-db",
-      from: "cache",
-      to: "replica",
-      kind: "sync-request",
-      carries: "reads",
-      timeoutMs: 1_000,
-      circuitBreaker: true,
-    },
-    {
-      id: "app-db",
-      from: "app",
-      to: "db",
-      kind: "sync-request",
-      carries: "writes",
-      timeoutMs: 2_000,
-      retries: 2,
-      jitter: true,
-    },
-    {
-      id: "db-replica",
-      from: "db",
-      to: "replica",
-      kind: "replication",
-      replication: { mode: "async", lagMs: 500 },
-    },
-  ],
+  reference: theViralDeckReference,
 }
