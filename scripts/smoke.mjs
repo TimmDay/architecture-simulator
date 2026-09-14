@@ -228,6 +228,43 @@ console.log(`board restored: ${restored} nodes (was ${beforeSolution})`)
 if (restored !== beforeSolution)
   errs.push("going back did not restore the player's own design")
 
+// The right rail starts closed for canvas width, and must open itself when it
+// has something to say -- otherwise selecting a component looks broken.
+await page.reload({ waitUntil: "networkidle" })
+await page.waitForTimeout(1200)
+const railShut = await page.evaluate(() => {
+  // innerText still reports text from a display:none element, so ask whether
+  // the panel is actually laid out rather than what it contains.
+  const aside = document.querySelectorAll("aside")[1]
+  const hidden = !aside || aside.offsetParent === null
+  const reopenButton = [...document.querySelectorAll("button")].some(
+    (b) => b.getAttribute("aria-label") === "Show panel",
+  )
+  return hidden && reopenButton
+})
+console.log("right rail closed on load:", railShut)
+if (!railShut) errs.push("the right rail did not start closed")
+
+const probeRow = await page.evaluate(() => {
+  const tops = ["Pressure", "Security", "Observability"].map((n) => {
+    const b = [...document.querySelectorAll("button")].find((x) =>
+      x.textContent?.trim().startsWith(n),
+    )
+    return b ? Math.round(b.getBoundingClientRect().top) : -1
+  })
+  return new Set(tops).size === 1
+})
+console.log("probe buttons share a row:", probeRow)
+if (!probeRow) errs.push("the probe buttons were split across rows")
+
+await page.getByRole("button", { name: /Pressure/i }).click()
+await page.waitForTimeout(900)
+const openedForResult = await page.evaluate(() =>
+  (document.querySelectorAll("aside")[1]?.innerText ?? "").includes("RESULT"),
+)
+console.log("rail opened to show the result:", openedForResult)
+if (!openedForResult) errs.push("the rail stayed shut when a result arrived")
+
 console.log("errors:", errs.length ? errs.join("\n ") : "(none)")
 await browser.close()
 if (errs.length) process.exit(1)

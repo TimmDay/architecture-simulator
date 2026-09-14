@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Background,
   Controls,
@@ -19,6 +19,8 @@ import {
   ChevronLeft,
   Play,
   Lightbulb,
+  PanelLeftOpen,
+  PanelRightOpen,
   RotateCcw,
   ShieldAlert,
   Undo2,
@@ -88,6 +90,15 @@ function Workspace({ scenario }: { scenario: Scenario }) {
    * see it -- comparing the two is the entire value, and losing your work to a
    * misplaced tap would make the button something to be afraid of.
    */
+  /**
+   * The right rail starts closed so the canvas gets the width. A full system is
+   * seven or eight columns across and the guide is read once.
+   *
+   * It opens itself the moment there is something to say -- a selected
+   * component, a selected connection, a graded result -- because a panel that
+   * stays shut while you click a box would make selection look broken.
+   */
+  const [railOpen, setRailOpen] = useState(false)
   const [stashed, setStashed] = useState<{
     nodes: (ComponentNodeType | ClientNodeType)[]
     edges: FlowEdge[]
@@ -508,6 +519,10 @@ function Workspace({ scenario }: { scenario: Scenario }) {
     setEnqueued(true)
   }, [result, scenario])
 
+  useEffect(() => {
+    if (selectedId || selectedEdgeId || result) setRailOpen(true)
+  }, [selectedId, selectedEdgeId, result])
+
   const selected = nodes.find((n) => n.id === selectedId)
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId)
   const labelOf = (id: string) =>
@@ -615,66 +630,73 @@ function Workspace({ scenario }: { scenario: Scenario }) {
 
       {/* Centre: canvas */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Wraps rather than overflowing: three probe buttons plus the metrics
-            do not fit beside the slider once both rails are open. */}
-        <div className="border-line bg-panel/40 flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="text-fog text-[11px]">Traffic</span>
-            <input
-              type="range"
-              min={0}
-              max={scenario.loadProfiles.length - 1}
-              value={profileIndex}
-              onChange={(e) => setProfileIndex(+e.target.value)}
-              className="accent-accent w-40"
-            />
-            <span className="text-chalk min-w-0 truncate text-[11px]">
-              {load.label}{" "}
-              <span className="text-fog">· {load.peakRps} rps peak</span>
-            </span>
+        {/* Two explicit rows rather than one wrapping one. Wrapping broke
+            wherever it happened to fit, so Pressure would sit up beside the
+            metrics while Security and Observability dropped below it -- three
+            buttons that do the same kind of thing, split across two lines. */}
+        <div className="border-line bg-panel/40 space-y-2 border-b px-4 py-2.5">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="text-fog text-[11px]">Traffic</span>
+              <input
+                type="range"
+                min={0}
+                max={scenario.loadProfiles.length - 1}
+                value={profileIndex}
+                onChange={(e) => setProfileIndex(+e.target.value)}
+                className="accent-accent w-40"
+              />
+              <span className="text-chalk min-w-0 truncate text-[11px]">
+                {load.label}{" "}
+                <span className="text-fog">· {load.peakRps} rps peak</span>
+              </span>
+            </div>
+
+            <div className="text-fog ml-auto flex items-center gap-4 text-[11px]">
+              <Metric
+                label="p99"
+                value={`${Math.round(e2e.p99Ms)}ms`}
+                bad={e2e.p99Ms > scenario.requirements.p99Ms}
+              />
+              <Metric
+                label="avail"
+                value={`${(e2e.topologyAvailability * 100).toFixed(2)}%`}
+                bad={
+                  e2e.topologyAvailability < scenario.requirements.availability
+                }
+              />
+              <Metric
+                label="cost/mo at peak"
+                value={`$${Math.round(peakCost)}`}
+                bad={peakCost > scenario.requirements.monthlyBudgetUsd}
+              />
+            </div>
           </div>
 
-          <div className="text-fog ml-auto flex items-center gap-4 text-[11px]">
-            <Metric
-              label="p99"
-              value={`${Math.round(e2e.p99Ms)}ms`}
-              bad={e2e.p99Ms > scenario.requirements.p99Ms}
-            />
-            <Metric
-              label="avail"
-              value={`${(e2e.topologyAvailability * 100).toFixed(2)}%`}
-              bad={
-                e2e.topologyAvailability < scenario.requirements.availability
-              }
-            />
-            <Metric
-              label="cost/mo at peak"
-              value={`$${Math.round(peakCost)}`}
-              bad={peakCost > scenario.requirements.monthlyBudgetUsd}
-            />
+          {/* Row two: the probes, always together. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => run("pressure")}
+              title="Turn the traffic up and run the fault script"
+              className="bg-accent/15 text-accent hover:bg-accent/25 flex items-center gap-1.5 rounded px-3 py-1.5 text-[12px] font-medium transition-colors"
+            >
+              <Play size={12} /> Pressure
+            </button>
+            <button
+              onClick={() => run("security")}
+              title="Probe the design for vulnerabilities"
+              className="bg-fail/15 text-fail hover:bg-fail/25 flex items-center gap-1.5 rounded px-3 py-1.5 text-[12px] font-medium transition-colors"
+            >
+              <ShieldAlert size={12} /> Security
+            </button>
+            <button
+              onClick={() => run("observability")}
+              title="Would you know this broke, and would you know where?"
+              className="bg-warn/15 text-warn hover:bg-warn/25 flex items-center gap-1.5 rounded px-3 py-1.5 text-[12px] font-medium transition-colors"
+            >
+              <Activity size={12} /> Observability
+            </button>
           </div>
-
-          <button
-            onClick={() => run("pressure")}
-            title="Turn the traffic up and run the fault script"
-            className="bg-accent/15 text-accent hover:bg-accent/25 flex items-center gap-1.5 rounded px-3 py-1.5 text-[12px] font-medium transition-colors"
-          >
-            <Play size={12} /> Pressure
-          </button>
-          <button
-            onClick={() => run("security")}
-            title="Probe the design for vulnerabilities"
-            className="bg-fail/15 text-fail hover:bg-fail/25 flex items-center gap-1.5 rounded px-3 py-1.5 text-[12px] font-medium transition-colors"
-          >
-            <ShieldAlert size={12} /> Security
-          </button>
-          <button
-            onClick={() => run("observability")}
-            title="Would you know this broke, and would you know where?"
-            className="bg-warn/15 text-warn hover:bg-warn/25 flex items-center gap-1.5 rounded px-3 py-1.5 text-[12px] font-medium transition-colors"
-          >
-            <Activity size={12} /> Observability
-          </button>
         </div>
 
         {stashed && (
@@ -734,8 +756,37 @@ function Workspace({ scenario }: { scenario: Scenario }) {
         </div>
       </div>
 
-      {/* Right: config + results */}
-      <aside className="border-line bg-panel/40 w-80 shrink-0 overflow-y-auto border-l p-4">
+      {/* Right: config + results. Collapses to a spine so the canvas can have
+          the width back; reopens itself whenever it has something to show. */}
+      {!railOpen && (
+        <button
+          onClick={() => setRailOpen(true)}
+          title="Show panel"
+          aria-label="Show panel"
+          className="border-line bg-panel/40 text-fog hover:text-chalk flex w-8 shrink-0 flex-col items-center gap-2 border-l pt-4 transition-colors"
+        >
+          <PanelLeftOpen size={14} />
+          <span
+            className="text-[10px] tracking-wide uppercase"
+            style={{ writingMode: "vertical-rl" }}
+          >
+            Panel
+          </span>
+        </button>
+      )}
+
+      <aside
+        className={`border-line bg-panel/40 shrink-0 overflow-y-auto border-l p-4 ${
+          railOpen ? "w-80" : "hidden"
+        }`}
+      >
+        <button
+          onClick={() => setRailOpen(false)}
+          className="text-fog hover:text-chalk mb-3 ml-auto flex items-center gap-1 text-[11px]"
+        >
+          Hide <PanelRightOpen size={12} />
+        </button>
+
         {selected?.type === "component" ? (
           <ConfigPanel
             component={selected.data.component}
