@@ -296,6 +296,20 @@ export function ConfigPanel({ component, onChange, onDelete }: Props) {
 
         {component.kind === "cache" && (
           <Row
+            label="Stampede protection"
+            hint="Coalesce concurrent misses so one key expiring does not hit the origin N times"
+          >
+            <input
+              type="checkbox"
+              checked={cfg.stampedeProtection ?? false}
+              onChange={(e) => set({ stampedeProtection: e.target.checked })}
+              className="accent-accent h-4 w-4"
+            />
+          </Row>
+        )}
+
+        {component.kind === "cache" && (
+          <Row
             label="TTL (seconds)"
             hint="Longer TTL, better hit rate, staler reads"
           >

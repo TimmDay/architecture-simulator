@@ -10,6 +10,19 @@ import {
   firstRealCustomers,
   firstRealCustomersReference,
 } from "../scenarios/01-first-real-customers"
+import { renderQueue, renderQueueReference } from "../scenarios/04-render-queue"
+import {
+  everythingDownstream,
+  everythingDownstreamReference,
+} from "../scenarios/05-everything-downstream"
+import {
+  aBillionDesigns,
+  aBillionDesignsReference,
+} from "../scenarios/06-a-billion-designs"
+import {
+  theViralDeck,
+  theViralDeckReference,
+} from "../scenarios/07-the-viral-deck"
 import { TOPICS } from "~/topics"
 import { CATALOGUE } from "../catalogue"
 
@@ -17,6 +30,10 @@ const CASES = [
   { scenario: firstRealCustomers, graph: firstRealCustomersReference },
   { scenario: frontPage, graph: frontPageReference },
   { scenario: receiptsAndPayments, graph: receiptsAndPaymentsReference },
+  { scenario: renderQueue, graph: renderQueueReference },
+  { scenario: everythingDownstream, graph: everythingDownstreamReference },
+  { scenario: aBillionDesigns, graph: aBillionDesignsReference },
+  { scenario: theViralDeck, graph: theViralDeckReference },
 ]
 
 describe.each(CASES)("$scenario.title", ({ scenario, graph }) => {
@@ -68,7 +85,7 @@ describe("the catalogue", () => {
   it("is not quietly tuned to make one scenario winnable", () => {
     // Every scenario is graded against the same physics. If a scenario is
     // unwinnable the scenario is wrong, not the catalogue.
-    expect(SCENARIOS).toHaveLength(3)
-    expect(SCENARIOS.map((s) => s.level)).toEqual([1, 2, 3])
+    expect(SCENARIOS).toHaveLength(7)
+    expect(SCENARIOS.map((s) => s.level)).toEqual([1, 2, 3, 3, 4, 4, 4])
   })
 })

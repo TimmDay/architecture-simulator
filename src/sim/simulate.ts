@@ -377,12 +377,29 @@ function criticalPath(
     id: string,
     acc: { p50Ms: number; p99Ms: number },
     depth: number,
+    via?: Edge,
   ) => {
     if (depth > 32) return
     const m = perComponent[id]
-    const here = m
-      ? { p50Ms: acc.p50Ms + m.p50Ms, p99Ms: acc.p99Ms + m.p99Ms }
-      : acc
+    let contribution = m
+      ? { p50Ms: m.p50Ms, p99Ms: m.p99Ms }
+      : { p50Ms: 0, p99Ms: 0 }
+
+    // A circuit breaker with a timeout bounds what a slow dependency can cost
+    // the caller: you wait the timeout at worst, then fail fast and degrade.
+    // Without this, the breaker is a label that changes no number, and "put a
+    // breaker on it" reads as ceremony rather than as the fix it is.
+    if (via?.circuitBreaker && via.timeoutMs) {
+      contribution = {
+        p50Ms: Math.min(contribution.p50Ms, via.timeoutMs),
+        p99Ms: Math.min(contribution.p99Ms, via.timeoutMs),
+      }
+    }
+
+    const here = {
+      p50Ms: acc.p50Ms + contribution.p50Ms,
+      p99Ms: acc.p99Ms + contribution.p99Ms,
+    }
     if (here.p99Ms > best.p99Ms) best = here
     for (const e of live.filter((e) => e.from === id)) {
       if (!ids.has(e.to)) continue
@@ -394,7 +411,7 @@ function criticalPath(
             p99Ms: here.p99Ms + CROSS_VENDOR_LATENCY_MS.p99,
           }
         : here
-      walk(e.to, hop, depth + 1)
+      walk(e.to, hop, depth + 1, e)
     }
   }
 
@@ -492,11 +509,23 @@ export function crossesVendors(graph: ArchitectureGraph, edge: Edge): boolean {
   const from = graph.components.find((c) => c.id === edge.from)
   const to = graph.components.find((c) => c.id === edge.to)
   if (!from || !to) return false
+  // The user's browser is not part of your network and its traffic is not your
+  // egress. Excluding it is consistent with leaving client-side components out
+  // of cost and availability.
+  const fromSpec = CATALOGUE[from.kind]
+  const toSpec = CATALOGUE[to.kind]
+  if (fromSpec?.clientSide || toSpec?.clientSide) return false
+
   const a = vendorFamily(from)
   const b = vendorFamily(to)
   // Unspecified on either side means the question has not been answered yet;
   // guessing would invent a cost the player never chose.
   if (!a || !b) return false
+  // "Self-hosted" means you run the software, not that it lives somewhere
+  // else -- self-managed Postgres on EC2 is still inside AWS's network. Billing
+  // egress for it would punish running your own software rather than crossing a
+  // provider boundary, which is the thing this is meant to measure.
+  if (a === "self-hosted" || b === "self-hosted") return false
   return a !== b
 }
 
