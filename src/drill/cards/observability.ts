@@ -14,15 +14,17 @@ export const observabilityCards: Card[] = [
       "reliability.slo-sli-error-budget",
     ],
     tier: 1,
-    speed: {
-      question: "Which is a symptom-based alert?",
-      correct: "p99 checkout latency above 2s for five minutes",
-      distractors: [
-        "CPU above 80% on any application instance",
-        "A host failing its health check",
-        "Queue depth exceeding ten thousand messages",
-      ],
-    },
+    speed: [
+      {
+        question: "Which is a symptom-based alert?",
+        correct: "p99 checkout latency above 2s for five minutes",
+        distractors: [
+          "CPU above 80% on any application instance",
+          "A host failing its health check",
+          "Queue depth exceeding ten thousand messages",
+        ],
+      },
+    ],
   },
   {
     id: "silent-failure",
@@ -38,16 +40,18 @@ export const observabilityCards: Card[] = [
       "fundamentals.percentiles",
     ],
     tier: 1,
-    speed: {
-      question:
-        "What catches a silent degradation that error-rate alerting misses?",
-      correct: "Latency percentiles measured against an SLO",
-      distractors: [
-        "Host health checks and instance restarts",
-        "Log volume anomaly detection",
-        "Synthetic checks of the login endpoint",
-      ],
-    },
+    speed: [
+      {
+        question:
+          "What catches a silent degradation that error-rate alerting misses?",
+        correct: "Latency percentiles measured against an SLO",
+        distractors: [
+          "Host health checks and instance restarts",
+          "Log volume anomaly detection",
+          "Synthetic checks of the login endpoint",
+        ],
+      },
+    ],
   },
   {
     id: "red-and-use",
@@ -61,16 +65,18 @@ export const observabilityCards: Card[] = [
       "observability.metrics-logs-traces",
     ],
     tier: 1,
-    speed: {
-      question: "RED and USE: which is which?",
-      correct:
-        "RED is the user's view and belongs on the pager; USE is the resource view you consult to find out why",
-      distractors: [
-        "RED covers resources, USE covers requests",
-        "Both measure requests, but USE adds saturation",
-        "RED is for synchronous services, USE for asynchronous ones",
-      ],
-    },
+    speed: [
+      {
+        question: "RED and USE: which is which?",
+        correct:
+          "RED is the user's view and belongs on the pager; USE is the resource view you consult to find out why",
+        distractors: [
+          "RED covers resources, USE covers requests",
+          "Both measure requests, but USE adds saturation",
+          "RED is for synchronous services, USE for asynchronous ones",
+        ],
+      },
+    ],
   },
   {
     id: "metrics-logs-traces",
@@ -86,16 +92,18 @@ export const observabilityCards: Card[] = [
       "cost.unit-economics",
     ],
     tier: 2,
-    speed: {
-      question:
-        "Which is the only practical way to find where 800ms went across five services?",
-      correct: "A distributed trace",
-      distractors: [
-        "Metrics, aggregated per service and compared",
-        "Logs, correlated by request id",
-        "Profiling each service under synthetic load",
-      ],
-    },
+    speed: [
+      {
+        question:
+          "Which is the only practical way to find where 800ms went across five services?",
+        correct: "A distributed trace",
+        distractors: [
+          "Metrics, aggregated per service and compared",
+          "Logs, correlated by request id",
+          "Profiling each service under synthetic load",
+        ],
+      },
+    ],
   },
   {
     id: "cardinality",
@@ -110,10 +118,12 @@ export const observabilityCards: Card[] = [
       "observability.metrics-logs-traces",
     ],
     tier: 2,
-    speed: {
-      question: "Which label will blow up a metrics system?",
-      correct: "Request id",
-      distractors: ["HTTP status code", "Region", "Service name"],
-    },
+    speed: [
+      {
+        question: "Which label will blow up a metrics system?",
+        correct: "Request id",
+        distractors: ["HTTP status code", "Region", "Service name"],
+      },
+    ],
   },
 ]

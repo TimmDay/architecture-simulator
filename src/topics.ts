@@ -252,6 +252,8 @@ export const TOPICS = {
   "api.pagination": { domain: "api", label: "Pagination" },
   "api.gateway-and-bff": { domain: "api", label: "Gateways and BFF" },
   "api.n-plus-one": { domain: "api", label: "N+1 and chatty services" },
+  "api.rest-design": { domain: "api", label: "REST API design" },
+  "api.status-codes": { domain: "api", label: "HTTP methods and status codes" },
 
   // frontend
   "frontend.rendering-strategy": {

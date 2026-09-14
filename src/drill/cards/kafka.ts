@@ -10,16 +10,18 @@ export const kafkaCards: Card[] = [
       "This is what makes 'add another consumer next quarter' a configuration change rather than a redesign, and it is the main reason to reach for a log when you cannot yet name every consumer.",
     topicIds: ["messaging.kafka-partitions", "messaging.queue-vs-log"],
     tier: 1,
-    speed: {
-      question: "What distinguishes a Kafka topic from a queue?",
-      correct:
-        "Reading does not consume — records are retained, so many consumers read all of them",
-      distractors: [
-        "It guarantees global ordering across all records",
-        "It delivers each record exactly once, by design",
-        "It stores records in memory rather than on disk",
-      ],
-    },
+    speed: [
+      {
+        question: "What distinguishes a Kafka topic from a queue?",
+        correct:
+          "Reading does not consume — records are retained, so many consumers read all of them",
+        distractors: [
+          "It guarantees global ordering across all records",
+          "It delivers each record exactly once, by design",
+          "It stores records in memory rather than on disk",
+        ],
+      },
+    ],
   },
   {
     id: "kafka-partitions",
@@ -31,16 +33,27 @@ export const kafkaCards: Card[] = [
       "Pick partition count from the throughput you expect within a couple of years, not from today's. Adding partitions later is possible and disrupts key ordering, which is exactly the guarantee people were relying on.",
     topicIds: ["messaging.kafka-partitions", "messaging.ordering"],
     tier: 1,
-    speed: {
-      question: "What is the main cost of adding partitions later?",
-      correct:
-        "Keys rehash to different partitions, so per-key ordering breaks for keys that move",
-      distractors: [
-        "Existing records must be rewritten into the new layout",
-        "Consumer groups must be recreated from the earliest offset",
-        "The topic becomes unavailable for the duration of the change",
-      ],
-    },
+    speed: [
+      {
+        question: "What is the main cost of adding partitions later?",
+        correct:
+          "Keys rehash to different partitions, so per-key ordering breaks for keys that move",
+        distractors: [
+          "Existing records must be rewritten into the new layout",
+          "Consumer groups must be recreated from the earliest offset",
+          "The topic becomes unavailable for the duration of the change",
+        ],
+      },
+      {
+        question: "What sets the maximum consumer concurrency for a topic?",
+        correct: "The partition count — one partition goes to one group member",
+        distractors: [
+          "The number of brokers in the cluster",
+          "The consumer group's configured thread pool size",
+          "The replication factor of the topic",
+        ],
+      },
+    ],
   },
   {
     id: "kafka-ordering",
@@ -51,16 +64,18 @@ export const kafkaCards: Card[] = [
       "The practical rule: key by the entity whose event order matters — the design id, the account id — and you get per-entity ordering with full parallelism across entities. Wanting global ordering means one partition, which means no parallelism, which almost always means you have misidentified the requirement.",
     topicIds: ["messaging.ordering", "messaging.kafka-partitions"],
     tier: 1,
-    speed: {
-      question: "What ordering does Kafka guarantee?",
-      correct:
-        "Within a partition only — records with the same key, since the key picks the partition",
-      distractors: [
-        "Across the whole topic, by the broker's receive timestamp",
-        "Within a consumer group, in the order offsets were committed",
-        "Across partitions, as long as the producer is single-threaded",
-      ],
-    },
+    speed: [
+      {
+        question: "What ordering does Kafka guarantee?",
+        correct:
+          "Within a partition only — records with the same key, since the key picks the partition",
+        distractors: [
+          "Across the whole topic, by the broker's receive timestamp",
+          "Within a consumer group, in the order offsets were committed",
+          "Across partitions, as long as the producer is single-threaded",
+        ],
+      },
+    ],
   },
   {
     id: "kafka-consumer-groups",
@@ -72,17 +87,19 @@ export const kafkaCards: Card[] = [
       "Rebalances are the operational surprise. A slow consumer whose processing exceeds the poll timeout gets kicked out, which triggers a rebalance, which slows everyone down, which causes more timeouts. 'Consumer group stuck rebalancing' is usually a processing-time problem wearing a configuration costume.",
     topicIds: ["messaging.consumer-groups", "messaging.kafka-partitions"],
     tier: 1,
-    speed: {
-      question:
-        "You have 4 partitions and 6 consumers in one group. What happens?",
-      correct:
-        "Four consume, two sit idle — a partition goes to exactly one member",
-      distractors: [
-        "All six share the four partitions, two records at a time",
-        "The group rebalances continuously, splitting each partition",
-        "Kafka creates two more partitions to match the group size",
-      ],
-    },
+    speed: [
+      {
+        question:
+          "You have 4 partitions and 6 consumers in one group. What happens?",
+        correct:
+          "Four consume, two sit idle — a partition goes to exactly one member",
+        distractors: [
+          "All six share the four partitions, two records at a time",
+          "The group rebalances continuously, splitting each partition",
+          "Kafka creates two more partitions to match the group size",
+        ],
+      },
+    ],
   },
   {
     id: "kafka-offsets",
@@ -93,16 +110,27 @@ export const kafkaCards: Card[] = [
       "Auto-commit on a timer is the default and quietly means at-most-once for anything still in flight when the process dies. If losing a record matters, commit after the work, accept replays, and make the handler idempotent.",
     topicIds: ["messaging.offsets", "messaging.delivery-semantics"],
     tier: 1,
-    speed: {
-      question: "What does committing an offset claim?",
-      correct:
-        "That everything before it is done — so committing before processing risks losing work",
-      distractors: [
-        "That the consumer has received the records into its buffer",
-        "That the broker may delete those records from the log",
-        "That the consumer group has rebalanced successfully",
-      ],
-    },
+    speed: [
+      {
+        question: "What does committing an offset claim?",
+        correct:
+          "That everything before it is done — so committing before processing risks losing work",
+        distractors: [
+          "That the consumer has received the records into its buffer",
+          "That the broker may delete those records from the log",
+          "That the consumer group has rebalanced successfully",
+        ],
+      },
+      {
+        question: "Auto-commit on a timer effectively gives you…",
+        correct: "At-most-once for anything in flight when the process dies",
+        distractors: [
+          "Exactly-once, since the broker tracks the commit",
+          "At-least-once, since uncommitted records are replayed",
+          "No guarantee at all, since offsets are only advisory",
+        ],
+      },
+    ],
   },
   {
     id: "kafka-consumer-death",
@@ -118,17 +146,19 @@ export const kafkaCards: Card[] = [
       "transactions.idempotency",
     ],
     tier: 1,
-    speed: {
-      question:
-        "A consumer processes half a batch, then is killed before committing. What happens?",
-      correct:
-        "Another member takes over from the last commit, so the whole batch is delivered again",
-      distractors: [
-        "The uncommitted half is lost and the group moves past it",
-        "The broker replays only the unprocessed records",
-        "The partition is unavailable until the original consumer returns",
-      ],
-    },
+    speed: [
+      {
+        question:
+          "A consumer processes half a batch, then is killed before committing. What happens?",
+        correct:
+          "Another member takes over from the last commit, so the whole batch is delivered again",
+        distractors: [
+          "The uncommitted half is lost and the group moves past it",
+          "The broker replays only the unprocessed records",
+          "The partition is unavailable until the original consumer returns",
+        ],
+      },
+    ],
   },
   {
     id: "idempotent-consumers",
@@ -144,15 +174,17 @@ export const kafkaCards: Card[] = [
       "transactions.upsert",
     ],
     tier: 1,
-    speed: {
-      question: "Which consumer is NOT safe against duplicate delivery?",
-      correct: "One that increments a counter for each record",
-      distractors: [
-        "One that upserts a row keyed by the entity id",
-        "One that applies a conditional update from an expected state",
-        "One that records processed offsets in the same transaction as its write",
-      ],
-    },
+    speed: [
+      {
+        question: "Which consumer is NOT safe against duplicate delivery?",
+        correct: "One that increments a counter for each record",
+        distractors: [
+          "One that upserts a row keyed by the entity id",
+          "One that applies a conditional update from an expected state",
+          "One that records processed offsets in the same transaction as its write",
+        ],
+      },
+    ],
   },
   {
     id: "compensating-actions",
@@ -168,15 +200,17 @@ export const kafkaCards: Card[] = [
       "transactions.atomicity",
     ],
     tier: 1,
-    speed: {
-      question: "Why is a compensating action not a rollback?",
-      correct:
-        "The original step really happened and was visible — you move forward to an acceptable state",
-      distractors: [
-        "It runs asynchronously, so the undo may be delayed",
-        "It only restores the affected rows, not the whole transaction",
-        "It is applied by the coordinator rather than by the participant",
-      ],
-    },
+    speed: [
+      {
+        question: "Why is a compensating action not a rollback?",
+        correct:
+          "The original step really happened and was visible — you move forward to an acceptable state",
+        distractors: [
+          "It runs asynchronously, so the undo may be delayed",
+          "It only restores the affected rows, not the whole transaction",
+          "It is applied by the coordinator rather than by the participant",
+        ],
+      },
+    ],
   },
 ]

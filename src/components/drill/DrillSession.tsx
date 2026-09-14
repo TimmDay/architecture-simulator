@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Check, RotateCcw, Zap } from "lucide-react"
-import { ALL_CARDS } from "~/drill/cards"
+import { ALL_CARDS, CORE_CARDS } from "~/drill/cards"
 import { buildQueue, topicStrength, type QueueItem } from "~/drill/queue"
 import { newCardState, schedule, REQUEUE_GAP } from "~/drill/sm2"
 import type { CardState, Grade } from "~/drill/types"
@@ -66,6 +66,8 @@ export function DrillSession() {
       const existing = await store.getCardStates()
       const map = new Map(existing.map((s) => [s.cardId, s]))
       const fresh: CardState[] = []
+      // Vocabulary cards get state too -- a wrong answer in Speed still pulls
+      // them forward -- they simply never enter the Discuss queue.
       for (const card of ALL_CARDS) {
         if (!map.has(card.id)) {
           const s = newCardState(card.id)
@@ -76,7 +78,7 @@ export function DrillSession() {
       if (fresh.length) await store.saveCardStates(fresh)
       if (cancelled) return
       setStates(map)
-      setQueue(buildQueue(ALL_CARDS, map))
+      setQueue(buildQueue(CORE_CARDS, map))
     })()
     return () => {
       cancelled = true

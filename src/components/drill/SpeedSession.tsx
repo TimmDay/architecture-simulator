@@ -6,22 +6,46 @@ import type { Card, CardState } from "~/drill/types"
 import {
   optionsFor,
   recordSpeedAnswer,
+  speedItems,
+  spreadItems,
   tallySpeed,
   EMPTY_STATS,
+  type SpeedItem,
 } from "~/drill/speed"
 import { getProgressStore } from "~/storage"
 import { TOPICS } from "~/topics"
 
 type Props = { cards: Card[]; states: Map<string, CardState> }
 
+type DeckFilter = "all" | "core" | "vocabulary"
+
+const DECK_TABS: [DeckFilter, string, string][] = [
+  ["all", "Everything", "Concepts and vocabulary together"],
+  ["core", "Concepts", "Mechanisms and trade-offs"],
+  ["vocabulary", "Vocabulary", "One-line definitions of the terms"],
+]
+
 export function SpeedSession({ cards, states }: Props) {
-  const [order, setOrder] = useState<Card[]>(cards)
+  const [deck, setDeck] = useState<DeckFilter>("all")
+  // Built once. A card with three variants contributes three questions, and
+  // no two questions about the same card sit next to each other.
+  const order = useMemo(
+    () =>
+      spreadItems(
+        speedItems(
+          cards.filter((c) => deck === "all" || (c.deck ?? "core") === deck),
+        ),
+        Math.random,
+      ),
+    [cards, deck],
+  )
   const [index, setIndex] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
   const [stats, setStats] = useState(EMPTY_STATS)
 
-  const card = order[index % Math.max(1, order.length)]
-  const options = useMemo(() => (card ? optionsFor(card) : []), [card])
+  const item = order[index % Math.max(1, order.length)]
+  const card = item?.card
+  const options = useMemo(() => (item ? optionsFor(item) : []), [item])
 
   const advance = useCallback(
     (random: boolean) => {
@@ -57,7 +81,7 @@ export function SpeedSession({ cards, states }: Props) {
     [picked, card, options, states],
   )
 
-  if (!card) {
+  if (!item || !card) {
     return <p className="text-fog text-sm">No cards available.</p>
   }
 
@@ -66,6 +90,27 @@ export function SpeedSession({ cards, states }: Props) {
 
   return (
     <div>
+      <div className="border-line bg-panel mb-4 inline-flex rounded-lg border p-0.5">
+        {DECK_TABS.map(([value, label, hint]) => (
+          <button
+            key={value}
+            onClick={() => {
+              setDeck(value)
+              setIndex(0)
+              setPicked(null)
+            }}
+            title={hint}
+            className={`rounded-md px-3 py-1 text-[11px] font-medium transition-colors ${
+              deck === value
+                ? "bg-panel-2 text-chalk"
+                : "text-fog hover:text-chalk"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="text-fog mb-4 flex items-center justify-between text-xs">
         <span>
           {stats.answered > 0 ? (
@@ -90,7 +135,7 @@ export function SpeedSession({ cards, states }: Props) {
 
       <div className="border-line bg-panel rounded-xl border p-6">
         <p className="text-chalk text-[17px] leading-relaxed font-medium">
-          {card.speed.question ?? card.prompt}
+          {item.variant.question ?? card.prompt}
         </p>
 
         <div className="mt-5 space-y-2">

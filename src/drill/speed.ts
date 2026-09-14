@@ -1,4 +1,4 @@
-import type { Card, CardState } from "./types"
+import type { Card, CardState, SpeedVariant } from "./types"
 
 /**
  * Speed mode: recognise the right answer among four, rather than produce it.
@@ -7,20 +7,73 @@ import type { Card, CardState } from "./types"
 export type Option = { text: string; correct: boolean }
 
 /**
+ * One question in Speed mode, and the card it belongs to.
+ *
+ * A card can carry several, so the session works over these rather than over
+ * cards -- otherwise a card with three variants would only ever show its first.
+ */
+export type SpeedItem = { card: Card; variant: SpeedVariant; index: number }
+
+export function speedItems(cards: Card[]): SpeedItem[] {
+  return cards.flatMap((card) =>
+    card.speed.map((variant, index) => ({ card, variant, index })),
+  )
+}
+
+/**
+ * Order items so that two questions about the same card never sit next to each
+ * other. Asking three facets of CAP in a row is a worse session than spreading
+ * them out, and the multi-variant cards are exactly the ones it would happen to.
+ */
+export function spreadItems(
+  items: SpeedItem[],
+  pick: () => number,
+): SpeedItem[] {
+  const pool = [...items]
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(pick() * (i + 1)) % (i + 1)
+    const a = pool[i]!
+    pool[i] = pool[j]!
+    pool[j] = a
+  }
+  const out: SpeedItem[] = []
+  const held: SpeedItem[] = []
+  for (const item of pool) {
+    if (out.length > 0 && out[out.length - 1]!.card.id === item.card.id)
+      held.push(item)
+    else out.push(item)
+  }
+  // Anything held back goes wherever it does not sit beside its sibling.
+  for (const item of held) {
+    const at = out.findIndex(
+      (o, i) =>
+        o.card.id !== item.card.id &&
+        (out[i + 1]?.card.id ?? null) !== item.card.id,
+    )
+    if (at === -1) out.push(item)
+    else out.splice(at + 1, 0, item)
+  }
+  return out
+}
+
+/**
  * Order the four options deterministically from the card id.
  *
  * Deterministic because a re-render must not reshuffle the answers under the
  * cursor, and because a test that cannot predict the order cannot check that
  * the correct answer is not always in the same position.
  */
-export function optionsFor(card: Card, salt = 0): Option[] {
+export function optionsFor(item: SpeedItem): Option[] {
   const options: Option[] = [
-    { text: card.speed.correct, correct: true },
-    ...card.speed.distractors.map((text) => ({ text, correct: false })),
+    { text: item.variant.correct, correct: true },
+    ...item.variant.distractors.map((text) => ({ text, correct: false })),
   ]
-  // xorshift seeded from the card id: same card, same order, every time.
-  let seed = salt + 2166136261
-  for (const ch of card.id) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619)
+  // xorshift seeded from the card id AND the variant index, so two questions
+  // about the same card do not put their answer in the same slot.
+  let seed = 2166136261
+  for (const ch of `${item.card.id}:${item.index}`) {
+    seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619)
+  }
   const rand = () => {
     seed ^= seed << 13
     seed ^= seed >>> 17

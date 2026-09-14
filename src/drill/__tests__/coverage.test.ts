@@ -14,11 +14,28 @@ describe("deck coverage", () => {
       )
       for (const t of card.topicIds)
         expect(TOPICS[t], `${card.id}: unknown topic ${t}`).toBeDefined()
+    }
+  })
+
+  it("holds core cards to a real explanation", () => {
+    for (const card of ALL_CARDS.filter((c) => c.deck !== "vocabulary")) {
       expect(
         card.answer.length,
         `${card.id} has a stub answer`,
       ).toBeGreaterThan(80)
       expect(card.prompt.length).toBeGreaterThan(20)
+    }
+  })
+
+  it("keeps vocabulary definitions to one line", () => {
+    // The point of them is that the term stops costing effort. A paragraph
+    // would defeat that, and clog the queue the core cards depend on.
+    const vocab = ALL_CARDS.filter((c) => c.deck === "vocabulary")
+    expect(vocab.length, "no vocabulary cards").toBeGreaterThan(30)
+    for (const card of vocab) {
+      expect(card.answer.length, `${card.id} is empty`).toBeGreaterThan(15)
+      expect(card.answer.length, `${card.id} is not one line`).toBeLessThan(110)
+      expect(card.speed, `${card.id} needs exactly one variant`).toHaveLength(1)
     }
   })
 

@@ -18,16 +18,18 @@ export const gapCards: Card[] = [
       "reliability.graceful-degradation",
     ],
     tier: 1,
-    speed: {
-      question: "What is the classic health-check outage?",
-      correct:
-        "A readiness check queries the database, it blips, and the whole fleet reports unready at once",
-      distractors: [
-        "Checks run too infrequently, so dead instances stay in rotation",
-        "The check endpoint is slow, so the load balancer times out",
-        "Liveness and readiness use the same port and conflict",
-      ],
-    },
+    speed: [
+      {
+        question: "What is the classic health-check outage?",
+        correct:
+          "A readiness check queries the database, it blips, and the whole fleet reports unready at once",
+        distractors: [
+          "Checks run too infrequently, so dead instances stay in rotation",
+          "The check endpoint is slow, so the load balancer times out",
+          "Liveness and readiness use the same port and conflict",
+        ],
+      },
+    ],
   },
   {
     id: "lb-algorithms",
@@ -43,16 +45,18 @@ export const gapCards: Card[] = [
       "partitioning.consistent-hashing",
     ],
     tier: 2,
-    speed: {
-      question: "When does round robin fail you?",
-      correct:
-        "During an incident, when one degraded instance still accepts connections and keeps being fed",
-      distractors: [
-        "When instances have different CPU and memory sizes",
-        "When requests must be routed to an instance holding that key's state",
-        "When the fleet scales up and down frequently",
-      ],
-    },
+    speed: [
+      {
+        question: "When does round robin fail you?",
+        correct:
+          "During an incident, when one degraded instance still accepts connections and keeps being fed",
+        distractors: [
+          "When instances have different CPU and memory sizes",
+          "When requests must be routed to an instance holding that key's state",
+          "When the fleet scales up and down frequently",
+        ],
+      },
+    ],
   },
   {
     id: "consistent-hashing",
@@ -68,16 +72,18 @@ export const gapCards: Card[] = [
       "caching.stampede",
     ],
     tier: 2,
-    speed: {
-      question: "What does consistent hashing fix about hash(key) % N?",
-      correct:
-        "Changing N remaps almost every key; consistent hashing moves only about 1/N of them",
-      distractors: [
-        "Modulo hashing distributes keys unevenly across nodes",
-        "Modulo hashing cannot support more than 256 nodes",
-        "Modulo hashing requires every client to know the full node list",
-      ],
-    },
+    speed: [
+      {
+        question: "What does consistent hashing fix about hash(key) % N?",
+        correct:
+          "Changing N remaps almost every key; consistent hashing moves only about 1/N of them",
+        distractors: [
+          "Modulo hashing distributes keys unevenly across nodes",
+          "Modulo hashing cannot support more than 256 nodes",
+          "Modulo hashing requires every client to know the full node list",
+        ],
+      },
+    ],
   },
   {
     id: "event-driven-tradeoffs",
@@ -93,16 +99,18 @@ export const gapCards: Card[] = [
       "observability.metrics-logs-traces",
     ],
     tier: 1,
-    speed: {
-      question: "What does an event-driven architecture cost you?",
-      correct:
-        "The straight line — no single place shows the whole operation, and failures surface far from their cause",
-      distractors: [
-        "Throughput, since every event must be persisted before acknowledgement",
-        "The ability to scale consumers independently of producers",
-        "Strong consistency within a single service's own database",
-      ],
-    },
+    speed: [
+      {
+        question: "What does an event-driven architecture cost you?",
+        correct:
+          "The straight line — no single place shows the whole operation, and failures surface far from their cause",
+        distractors: [
+          "Throughput, since every event must be persisted before acknowledgement",
+          "The ability to scale consumers independently of producers",
+          "Strong consistency within a single service's own database",
+        ],
+      },
+    ],
   },
   {
     id: "encryption-at-rest",
@@ -114,16 +122,18 @@ export const gapCards: Card[] = [
       "Worth being precise about in compliance conversations, because it is often presented as though it addresses breach risk generally. It changes a lost disk from a disclosure into a non-event, and changes nothing about a leaked credential.",
     topicIds: ["security.encryption-at-rest", "security.least-privilege"],
     tier: 1,
-    speed: {
-      question: "What does encryption at rest NOT protect against?",
-      correct:
-        "A stolen credential or SQL injection — the database decrypts for anyone it authorises",
-      distractors: [
-        "A decommissioned disk being recovered from a skip",
-        "A snapshot copied into the wrong cloud account",
-        "A misconfigured bucket exposing backup files",
-      ],
-    },
+    speed: [
+      {
+        question: "What does encryption at rest NOT protect against?",
+        correct:
+          "A stolen credential or SQL injection — the database decrypts for anyone it authorises",
+        distractors: [
+          "A decommissioned disk being recovered from a skip",
+          "A snapshot copied into the wrong cloud account",
+          "A misconfigured bucket exposing backup files",
+        ],
+      },
+    ],
   },
   {
     id: "pii-and-residency",
@@ -139,16 +149,18 @@ export const gapCards: Card[] = [
       "observability.metrics-logs-traces",
     ],
     tier: 1,
-    speed: {
-      question:
-        "Which copy of personal data most often gets missed in a residency review?",
-      correct: "Logs and traces containing field values",
-      distractors: [
-        "The primary database in the regulated region",
-        "Nightly backups stored alongside the primary",
-        "The read replica serving the same region",
-      ],
-    },
+    speed: [
+      {
+        question:
+          "Which copy of personal data most often gets missed in a residency review?",
+        correct: "Logs and traces containing field values",
+        distractors: [
+          "The primary database in the regulated region",
+          "Nightly backups stored alongside the primary",
+          "The read replica serving the same region",
+        ],
+      },
+    ],
   },
   {
     id: "least-privilege",
@@ -164,16 +176,18 @@ export const gapCards: Card[] = [
       "security.secrets",
     ],
     tier: 1,
-    speed: {
-      question: "What is the usual gap in least privilege?",
-      correct:
-        "Permissions granted broadly during development and never narrowed afterwards",
-      distractors: [
-        "Credentials stored in environment variables rather than a secrets manager",
-        "Roles assigned to users instead of to groups",
-        "Access reviews happening annually rather than quarterly",
-      ],
-    },
+    speed: [
+      {
+        question: "What is the usual gap in least privilege?",
+        correct:
+          "Permissions granted broadly during development and never narrowed afterwards",
+        distractors: [
+          "Credentials stored in environment variables rather than a secrets manager",
+          "Roles assigned to users instead of to groups",
+          "Access reviews happening annually rather than quarterly",
+        ],
+      },
+    ],
   },
   {
     id: "team-topologies",
@@ -188,15 +202,17 @@ export const gapCards: Card[] = [
       "org.ownership-boundaries",
     ],
     tier: 1,
-    speed: {
-      question: "What happens to a service owned by three teams?",
-      correct:
-        "It accumulates the interfaces of a committee, and nobody owns its coherence",
-      distractors: [
-        "It gets more code review and therefore fewer defects",
-        "It becomes a bottleneck because every change needs three approvals",
-        "It naturally splits into three services along team lines",
-      ],
-    },
+    speed: [
+      {
+        question: "What happens to a service owned by three teams?",
+        correct:
+          "It accumulates the interfaces of a committee, and nobody owns its coherence",
+        distractors: [
+          "It gets more code review and therefore fewer defects",
+          "It becomes a bottleneck because every change needs three approvals",
+          "It naturally splits into three services along team lines",
+        ],
+      },
+    ],
   },
 ]

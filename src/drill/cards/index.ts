@@ -12,6 +12,7 @@ import { distributedCards } from "./distributed"
 import { kafkaCards } from "./kafka"
 import { productionCards } from "./production"
 import { gapCards } from "./gaps"
+import { vocabularyCards } from "./vocabulary"
 
 /**
  * The deck.
@@ -35,6 +36,7 @@ export const ALL_CARDS: Card[] = [
   ...kafkaCards,
   ...productionCards,
   ...gapCards,
+  ...vocabularyCards,
 ]
 
 const seen = new Set<string>()
@@ -42,6 +44,19 @@ for (const card of ALL_CARDS) {
   if (seen.has(card.id)) throw new Error(`Duplicate card id: ${card.id}`)
   seen.add(card.id)
 }
+
+/**
+ * Discuss mode draws on these only. Vocabulary is a one-line definition --
+ * typing it out and self-grading is ceremony, and it would clog the review
+ * queue the harder cards depend on.
+ */
+export const CORE_CARDS: Card[] = ALL_CARDS.filter(
+  (c) => c.deck !== "vocabulary",
+)
+
+export const VOCABULARY_CARDS: Card[] = ALL_CARDS.filter(
+  (c) => c.deck === "vocabulary",
+)
 
 export const CARDS_BY_TOPIC = ALL_CARDS.reduce<Record<string, Card[]>>(
   (acc, card) => {
