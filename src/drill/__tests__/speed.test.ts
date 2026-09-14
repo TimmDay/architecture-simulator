@@ -156,7 +156,22 @@ describe("what a speed answer does to the schedule", () => {
     // Recognising among four is weaker evidence than producing from nothing.
     // Letting it push intervals out would hollow the deck out invisibly.
     const before = learned()
-    expect(recordSpeedAnswer(before, true)).toEqual(before)
+    const after = recordSpeedAnswer(before, true)
+    expect(after.dueAt).toBe(before.dueAt)
+    expect(after.intervalDays).toBe(before.intervalDays)
+    expect(after.easeFactor).toBe(before.easeFactor)
+    expect(after.repetitions).toBe(before.repetitions)
+  })
+
+  it("records the attempt either way, so recognition can be measured", () => {
+    // Counting only failures would make it impossible to see where recognition
+    // is weak -- you would have misses with no denominator.
+    const first = recordSpeedAnswer(learned(), true)
+    expect(first.speedSeen).toBe(1)
+    expect(first.speedRight).toBe(1)
+    const second = recordSpeedAnswer(first, false)
+    expect(second.speedSeen).toBe(2)
+    expect(second.speedRight).toBe(1)
   })
 
   it("pulls the card forward when you get it wrong", () => {
