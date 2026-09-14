@@ -11,6 +11,16 @@ export const messagingCards: Card[] = [
       "Shorthand: queue for work distribution, log for event distribution. The expensive mistake is building a queue-based integration and later needing to add a second consumer or reprocess a week of data.",
     topicIds: ["messaging.queue-vs-log"],
     tier: 1,
+    speed: {
+      question: "What can a log do that a queue cannot?",
+      correct:
+        "Let several independent consumers each read every message, and replay history",
+      distractors: [
+        "Guarantee messages are processed in the order they were sent",
+        "Deliver each message to exactly one consumer",
+        "Retry a failed message without blocking the ones behind it",
+      ],
+    },
   },
   {
     id: "exactly-once",
@@ -22,6 +32,16 @@ export const messagingCards: Card[] = [
       "When a vendor says exactly-once, the useful follow-up is 'within what boundary?'. It is usually true inside their system and false at the edge where you call an external API or write to another store.",
     topicIds: ["messaging.delivery-semantics", "transactions.idempotency"],
     tier: 1,
+    speed: {
+      question: "What do systems claiming exactly-once actually provide?",
+      correct:
+        "At-least-once delivery plus effectively-once processing, via dedup or idempotency",
+      distractors: [
+        "True exactly-once delivery, using two-phase commit with the broker",
+        "At-most-once delivery, dropping anything it cannot confirm",
+        "Exactly-once within one partition, at-least-once across partitions",
+      ],
+    },
   },
   {
     id: "backpressure",
@@ -33,6 +53,16 @@ export const messagingCards: Card[] = [
       "The insidious version is that the system does not fail, it just gets slower and slower while every dashboard stays green -- throughput looks fine, and consumer lag is the only metric that reveals it. Alert on lag and on queue depth, not on error rate.",
     topicIds: ["messaging.backpressure", "messaging.consumer-lag"],
     tier: 1,
+    speed: {
+      question: "A pipeline has no backpressure. What actually happens?",
+      correct:
+        "Nothing errors — the queue grows until memory dies or the data is too stale to matter",
+      distractors: [
+        "The producer receives errors and slows down on its own",
+        "Messages are dropped once the buffer is full, and the error rate climbs",
+        "The consumer crashes immediately and the pipeline stops",
+      ],
+    },
   },
   {
     id: "dlq",
@@ -44,6 +74,16 @@ export const messagingCards: Card[] = [
       "A DLQ without an alert on its depth, and a named owner for draining it, is worse than no DLQ, because it converts a loud failure into a quiet one.",
     topicIds: ["messaging.dlq", "messaging.ordering"],
     tier: 2,
+    speed: {
+      question: "What new problem does a dead-letter queue create?",
+      correct:
+        "An unmonitored DLQ is silent data loss — messages vanish successfully",
+      distractors: [
+        "Messages in it are delivered out of order when replayed",
+        "It doubles storage cost for every message in the system",
+        "Consumers must now handle two queues in the same transaction",
+      ],
+    },
   },
   {
     id: "fanout-write-vs-read",
@@ -55,5 +95,15 @@ export const messagingCards: Card[] = [
       "The real answer at scale is hybrid: fanout-on-write for ordinary accounts, fanout-on-read for the handful of celebrities, merged at read time. Being able to say 'hybrid, and here is where the boundary sits' is the senior answer.",
     topicIds: ["messaging.fanout", "partitioning.hot-keys"],
     tier: 2,
+    speed: {
+      question: "Where does fanout-on-write break?",
+      correct:
+        "Celebrity accounts — one post becomes fifty million feed writes",
+      distractors: [
+        "Users who follow thousands of accounts, making each read expensive",
+        "Feeds that must be strictly ordered by timestamp",
+        "Accounts that post very rarely, leaving feeds cold",
+      ],
+    },
   },
 ]

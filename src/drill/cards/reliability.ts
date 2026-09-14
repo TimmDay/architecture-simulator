@@ -10,6 +10,16 @@ export const reliabilityCards: Card[] = [
       "This is the actual point of SLOs and the part managers skip. Without an error budget, 'how reliable should this be?' is settled by whoever argues hardest. With one, it is settled by arithmetic agreed in advance. If nothing changes when the budget is exhausted, you do not have an SLO, you have a dashboard.",
     topicIds: ["reliability.slo-sli-error-budget"],
     tier: 1,
+    speed: {
+      question: "What is an error budget for?",
+      correct:
+        "A quantified, agreed permission to take risk — and a trigger that changes priorities when spent",
+      distractors: [
+        "A target for how few incidents the team should have this quarter",
+        "The compensation owed to customers when an SLA is missed",
+        "A cap on how much the on-call rotation may be paged",
+      ],
+    },
   },
   {
     id: "failure-domain",
@@ -21,6 +31,17 @@ export const reliabilityCards: Card[] = [
       "Generalise the question: shared control plane, shared deploy pipeline, shared config service, shared certificate expiry. Correlated failure is what turns an outage into a long outage, and it is almost never on the architecture diagram.",
     topicIds: ["reliability.failure-domains", "reliability.redundancy"],
     tier: 1,
+    speed: {
+      question:
+        "Three instances are running. What decides whether that is actually redundant?",
+      correct:
+        "What they share — one rack, one AZ, one deploy pipeline means they fail together",
+      distractors: [
+        "Whether the load balancer health-checks all three",
+        "Whether they are behind an auto-scaling group",
+        "Whether the instance type is large enough to absorb the others' load",
+      ],
+    },
   },
   {
     id: "n-plus-one-capacity",
@@ -36,6 +57,17 @@ export const reliabilityCards: Card[] = [
       "fundamentals.throughput-vs-latency",
     ],
     tier: 1,
+    speed: {
+      question:
+        "Peak is 400 rps and each instance serves 200. How many do you run?",
+      correct:
+        "Four — peak must still be served with one instance gone, plus headroom",
+      distractors: [
+        "Two — that is exactly enough to meet peak",
+        "Three — two for peak and one spare for failover",
+        "Eight — always run at 50% utilisation or lower",
+      ],
+    },
   },
   {
     id: "retry-storm",
@@ -47,6 +79,16 @@ export const reliabilityCards: Card[] = [
       "Retries are the most common example of a local fix with global consequences. Every client team adds them reasonably; the aggregate is a DDoS you built yourself.",
     topicIds: ["reliability.retries-and-jitter", "reliability.circuit-breaker"],
     tier: 1,
+    speed: {
+      question: "What makes retries safe rather than dangerous?",
+      correct:
+        "Exponential backoff with jitter, a retry budget, and idempotent operations",
+      distractors: [
+        "A higher retry count, so transient failures are always absorbed",
+        "Retrying immediately, so the request completes before the user notices",
+        "Retrying only on 5xx and never on a timeout",
+      ],
+    },
   },
   {
     id: "circuit-breaker",
@@ -57,6 +99,16 @@ export const reliabilityCards: Card[] = [
       "The failure mode it prevents is resource exhaustion propagating upstream -- every thread parked on a 30s timeout means no threads left for requests that would have succeeded. Pair with a bulkhead so one dependency cannot consume the whole pool.",
     topicIds: ["reliability.circuit-breaker", "reliability.bulkheads"],
     tier: 2,
+    speed: {
+      question: "What does a circuit breaker do that a timeout alone does not?",
+      correct:
+        "Bounds the aggregate — it stops calling a dependency that is clearly down",
+      distractors: [
+        "Bounds how long any single request can take",
+        "Retries the failed request against a different instance",
+        "Queues requests until the dependency recovers",
+      ],
+    },
   },
   {
     id: "graceful-degradation",
@@ -68,5 +120,15 @@ export const reliabilityCards: Card[] = [
       "The management version of this question: which of your dependencies are on the critical path for revenue, and does your code know the difference? Most systems treat all dependencies as mandatory by default, which means the least important one sets your availability ceiling.",
     topicIds: ["reliability.graceful-degradation", "reliability.bulkheads"],
     tier: 2,
+    speed: {
+      question: "Which of these is graceful degradation?",
+      correct:
+        "Rendering the product page without the recommendations strip when that service is down",
+      distractors: [
+        "Returning a 503 quickly instead of hanging for thirty seconds",
+        "Automatically failing over to a replica in another zone",
+        "Shedding load by rejecting requests from the heaviest clients first",
+      ],
+    },
   },
 ]

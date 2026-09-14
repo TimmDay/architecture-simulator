@@ -15,6 +15,16 @@ export const distributedCards: Card[] = [
       "consistency.quorum-rw",
     ],
     tier: 1,
+    speed: {
+      question: "During a partition, a CP system…",
+      correct:
+        "Refuses requests it cannot answer correctly, so nothing diverges",
+      distractors: [
+        "Serves both sides and reconciles the conflict afterwards",
+        "Keeps serving reads but rejects writes on both sides",
+        "Promotes the larger side to leader and discards the smaller",
+      ],
+    },
   },
   {
     id: "ap-behaviour",
@@ -30,6 +40,16 @@ export const distributedCards: Card[] = [
       "replication.multi-leader",
     ],
     tier: 1,
+    speed: {
+      question: "After an AP system's partition heals, what must happen?",
+      correct:
+        "The divergence must be reconciled — last-write-wins, version vectors, or a CRDT merge",
+      distractors: [
+        "Nothing; both sides were consistent within themselves",
+        "The minority side rolls back to the majority's state automatically",
+        "A leader election runs and the loser's writes are replayed",
+      ],
+    },
   },
   {
     id: "sql-nosql-consistency-fallacy",
@@ -45,6 +65,16 @@ export const distributedCards: Card[] = [
       "replication.leader-follower",
     ],
     tier: 1,
+    speed: {
+      question: "Why is 'SQL is consistent, NoSQL is eventual' wrong?",
+      correct:
+        "Consistency is set by replication mode and read routing, not by the data model",
+      distractors: [
+        "Because NoSQL stores are strongly consistent and relational ones are not",
+        "Because both are eventually consistent once replicated",
+        "Because the distinction only applies to writes, never to reads",
+      ],
+    },
   },
   {
     id: "when-strong-consistency",
@@ -60,6 +90,15 @@ export const distributedCards: Card[] = [
       "reliability.state-vs-compute",
     ],
     tier: 1,
+    speed: {
+      question: "Which needs strong consistency?",
+      correct: "Checking whether a seat is still available before selling it",
+      distractors: [
+        "Updating a search index after a document changes",
+        "Counting page views for an analytics dashboard",
+        "Refreshing a recommendation feed",
+      ],
+    },
   },
   {
     id: "when-eventual-consistency",
@@ -74,6 +113,16 @@ export const distributedCards: Card[] = [
       "observability.alerting-on-symptoms",
     ],
     tier: 1,
+    speed: {
+      question: "What makes eventual consistency safe in practice?",
+      correct:
+        "Bounding the staleness with a number, and alerting when it is exceeded",
+      distractors: [
+        "Using a database that guarantees convergence within one second",
+        "Only reading derived data through a cache",
+        "Ensuring writes always go to the same replica",
+      ],
+    },
   },
   {
     id: "leader-follower-mechanics",
@@ -89,6 +138,15 @@ export const distributedCards: Card[] = [
       "replication.split-brain",
     ],
     tier: 1,
+    speed: {
+      question: "In leader/follower replication, what do followers do?",
+      correct: "Stream the leader's change log and apply it in the same order",
+      distractors: [
+        "Accept writes and forward them to the leader for ordering",
+        "Periodically snapshot the leader and load the result",
+        "Vote on each write before the leader acknowledges it",
+      ],
+    },
   },
   {
     id: "why-shard",
@@ -99,6 +157,16 @@ export const distributedCards: Card[] = [
       "Sharding is the last resort, after vertical scaling, read replicas, caching and archiving cold data. Teams that shard early spend their complexity budget on a problem they did not yet have.",
     topicIds: ["partitioning.strategies", "scaling.vertical-vs-horizontal"],
     tier: 1,
+    speed: {
+      question: "What problem does sharding actually solve?",
+      correct:
+        "One machine's limits — data too large, or writes beyond one node's capacity",
+      distractors: [
+        "Read scaling, which is its primary benefit",
+        "Hot keys, by spreading a popular record across nodes",
+        "Query latency, by making every query touch less data",
+      ],
+    },
   },
   {
     id: "shard-key-choice",
@@ -113,6 +181,16 @@ export const distributedCards: Card[] = [
       "partitioning.rebalancing",
     ],
     tier: 1,
+    speed: {
+      question: "Which is a bad shard key?",
+      correct:
+        "An auto-incrementing id — every new write lands on the same shard",
+      distractors: [
+        "A user id on a workload where most queries are per-user",
+        "A tenant id in a product with many similar-sized tenants",
+        "A hash of the document id in a key-value workload",
+      ],
+    },
   },
   {
     id: "cross-partition-queries",
@@ -128,6 +206,17 @@ export const distributedCards: Card[] = [
       "consistency.eventual",
     ],
     tier: 1,
+    speed: {
+      question:
+        "Why is a scatter-gather query expensive beyond just doing more work?",
+      correct:
+        "Its latency is the slowest shard's, so you hit someone's p99 nearly every time",
+      distractors: [
+        "Each shard must take a lock for the duration of the query",
+        "The coordinator has to open a transaction across all shards",
+        "Results must be re-sharded before they can be returned",
+      ],
+    },
   },
   {
     id: "cross-partition-invariants",
@@ -143,5 +232,15 @@ export const distributedCards: Card[] = [
       "transactions.sagas",
     ],
     tier: 2,
+    speed: {
+      question: "Why is 'this username is unique' hard once you shard?",
+      correct:
+        "A unique index only enforces uniqueness within a partition, not across them",
+      distractors: [
+        "Unique indexes cannot be created on a sharded table at all",
+        "The shard router cannot see writes until they commit",
+        "Uniqueness requires a scatter-gather read before every write, which times out",
+      ],
+    },
   },
 ]

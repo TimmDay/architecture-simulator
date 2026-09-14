@@ -15,6 +15,16 @@ export const transactionCards: Card[] = [
       "transactions.outbox",
     ],
     tier: 1,
+    speed: {
+      question: "What does a transaction's atomicity NOT cover?",
+      correct:
+        "Side effects outside the database — an email sent or an API called inside it are not undone",
+      distractors: [
+        "Changes made by other transactions running concurrently",
+        "Writes to tables the transaction did not explicitly lock",
+        "Statements that failed and were caught by the application",
+      ],
+    },
   },
   {
     id: "read-uncommitted",
@@ -25,6 +35,17 @@ export const transactionCards: Card[] = [
       "Effectively never the right answer. If it appears in a codebase, it is almost always cargo-culted from an attempt to avoid lock contention that MVCC had already solved.",
     topicIds: ["transactions.isolation-levels"],
     tier: 2,
+    speed: {
+      question:
+        "What does Read Uncommitted allow that Read Committed does not?",
+      correct:
+        "Dirty reads — seeing rows from a transaction that has not committed and may roll back",
+      distractors: [
+        "Non-repeatable reads within the same transaction",
+        "Phantom rows appearing between two identical queries",
+        "Lost updates from concurrent read-modify-write sequences",
+      ],
+    },
   },
   {
     id: "read-committed",
@@ -36,6 +57,16 @@ export const transactionCards: Card[] = [
       "Being the default makes this the level most production bugs actually happen at. The classic shape is read-then-write: SELECT a balance, compute a new one in application code, UPDATE. Under Read Committed nothing stops two requests doing that concurrently.",
     topicIds: ["transactions.isolation-levels", "transactions.lost-update"],
     tier: 1,
+    speed: {
+      question: "What can still go wrong under Read Committed?",
+      correct:
+        "Two identical SELECTs in one transaction can return different rows",
+      distractors: [
+        "You can read a value that was never committed by anyone",
+        "Writes can be silently discarded without any error",
+        "Rows you have already written can disappear mid-transaction",
+      ],
+    },
   },
   {
     id: "repeatable-read",
@@ -46,6 +77,17 @@ export const transactionCards: Card[] = [
       "The practical consequence people miss: raising isolation moves the problem from silent corruption to visible errors your code must handle. If you raise the level and do not add retry handling, you have traded a rare wrong answer for a regular 500.",
     topicIds: ["transactions.isolation-levels", "transactions.mvcc"],
     tier: 1,
+    speed: {
+      question:
+        "In Postgres, what happens when a Repeatable Read transaction writes a row another transaction changed since its snapshot?",
+      correct:
+        "It fails with a serialization error, so the application must retry",
+      distractors: [
+        "It silently overwrites, because last write wins",
+        "It blocks until the other transaction commits, then proceeds",
+        "It sees the newer value and applies the change on top of it",
+      ],
+    },
   },
   {
     id: "serializable-tradeoffs",
@@ -56,6 +98,16 @@ export const transactionCards: Card[] = [
       "The honest position is that Serializable is cheap when contention is low and expensive exactly when you need it. Use it for the handful of operations with real invariants, not as a blanket setting.",
     topicIds: ["transactions.isolation-levels"],
     tier: 2,
+    speed: {
+      question: "What does Serializable cost you?",
+      correct:
+        "Throughput under contention, and a retry loop for every transaction",
+      distractors: [
+        "Read consistency, since readers now block on writers",
+        "Durability, because commits are deferred until the batch resolves",
+        "Nothing measurable on modern engines — it is the sensible default",
+      ],
+    },
   },
   {
     id: "lost-update",
@@ -71,6 +123,16 @@ export const transactionCards: Card[] = [
       "transactions.isolation-levels",
     ],
     tier: 1,
+    speed: {
+      question:
+        "Two requests read 10, add 1, write 11. Which fix does NOT solve it?",
+      correct: "Raising the isolation level to Read Committed",
+      distractors: [
+        "UPDATE ... SET n = n + 1, doing the arithmetic in the database",
+        "SELECT ... FOR UPDATE, so the second reader waits",
+        "A version column, so the second write fails and retries",
+      ],
+    },
   },
   {
     id: "mvcc-why",
@@ -82,6 +144,16 @@ export const transactionCards: Card[] = [
       "The operational tail of this matters: long-lived transactions hold back the cleanup horizon, so one forgotten open transaction in a reporting job can bloat a production database. 'Why is the disk full' is often 'who left a transaction open'.",
     topicIds: ["transactions.mvcc"],
     tier: 1,
+    speed: {
+      question: "What is the operational cost of MVCC?",
+      correct:
+        "Old row versions accumulate and must be reclaimed — bloat when cleanup falls behind",
+      distractors: [
+        "Writes must wait for all open readers to finish",
+        "Every read consumes a lock that must be released explicitly",
+        "Indexes have to be rebuilt after each vacuum",
+      ],
+    },
   },
   {
     id: "mvcc-snapshot",
@@ -93,6 +165,16 @@ export const transactionCards: Card[] = [
       "This is why 'the report disagrees with the dashboard' is often not a bug. Worth being able to say out loud: the report is consistent, just as of ten minutes ago.",
     topicIds: ["transactions.mvcc", "consistency.eventual"],
     tier: 2,
+    speed: {
+      question: "A long analytical read under MVCC sees…",
+      correct:
+        "A consistent picture as of when it started — correct, and stale by however long it has run",
+      distractors: [
+        "The newest committed value for each row as it reaches it",
+        "Whatever the leader has, blocking writers for the duration",
+        "An inconsistent mix, which is why reports disagree with dashboards",
+      ],
+    },
   },
   {
     id: "optimistic-locking",
@@ -104,6 +186,17 @@ export const transactionCards: Card[] = [
       "This is also what makes a good HTTP concurrency story — the version maps directly onto an ETag with If-Match, so the conflict surfaces at the API rather than as a silent overwrite of somebody else's edit.",
     topicIds: ["transactions.optimistic-locking", "transactions.lost-update"],
     tier: 1,
+    speed: {
+      question:
+        "In the optimistic locking pattern, what tells you a conflict happened?",
+      correct:
+        "The UPDATE affects zero rows, because the version no longer matches",
+      distractors: [
+        "The database raises a deadlock error",
+        "A SELECT ... FOR UPDATE times out waiting for the lock",
+        "The transaction is aborted with a serialization failure",
+      ],
+    },
   },
   {
     id: "optimistic-vs-pessimistic",
@@ -118,6 +211,15 @@ export const transactionCards: Card[] = [
       "transactions.pessimistic-locking",
     ],
     tier: 1,
+    speed: {
+      question: "When is optimistic locking the wrong choice?",
+      correct: "When conflicts are frequent, so retry loops thrash",
+      distractors: [
+        "When the work between read and write involves a human",
+        "When the operation spans a call to another service",
+        "When the row is read far more often than it is written",
+      ],
+    },
   },
   {
     id: "select-for-update",
@@ -128,6 +230,17 @@ export const transactionCards: Card[] = [
       "Two things to insist on in review: lock rows in a consistent order across the codebase (out-of-order locking is how deadlocks appear), and never leave a network call inside the locked section.",
     topicIds: ["transactions.pessimistic-locking", "transactions.deadlocks"],
     tier: 1,
+    speed: {
+      question:
+        "What is the main rule to follow when using SELECT ... FOR UPDATE?",
+      correct:
+        "Lock rows in a consistent order, and never hold the lock across a network call",
+      distractors: [
+        "Always lock the whole table to avoid gap locks",
+        "Take the lock as early as possible, before any other work",
+        "Set a low isolation level so the lock is released sooner",
+      ],
+    },
   },
   {
     id: "deadlocks",
@@ -139,6 +252,15 @@ export const transactionCards: Card[] = [
       "Rising deadlock rates are a design signal, not a tuning problem. They usually mean two code paths touch the same rows in different orders, and the fix is in the code rather than in the database configuration.",
     topicIds: ["transactions.deadlocks", "transactions.pessimistic-locking"],
     tier: 1,
+    speed: {
+      question: "What is the usual root cause of rising deadlock rates?",
+      correct: "Two code paths touching the same rows in different orders",
+      distractors: [
+        "Transactions being held open too long by slow queries",
+        "Too many concurrent connections for the pool size",
+        "An isolation level set higher than the workload needs",
+      ],
+    },
   },
   {
     id: "idempotency-principle",
@@ -154,6 +276,16 @@ export const transactionCards: Card[] = [
       "reliability.retries-and-jitter",
     ],
     tier: 1,
+    speed: {
+      question: "Why is idempotency unavoidable in a distributed system?",
+      correct:
+        "A timeout cannot distinguish 'never arrived' from 'processed, response lost'",
+      distractors: [
+        "Message brokers reorder messages, so replays are inevitable",
+        "Clocks drift between nodes, so ordering cannot be trusted",
+        "Network partitions mean some writes are applied twice by design",
+      ],
+    },
   },
   {
     id: "naturally-idempotent-transitions",
@@ -165,6 +297,15 @@ export const transactionCards: Card[] = [
       "Preferring absolute over relative updates in APIs and events costs nothing at design time and removes a whole class of duplicate-delivery bugs. Deltas are the thing that makes exactly-once feel necessary.",
     topicIds: ["transactions.idempotency", "messaging.delivery-semantics"],
     tier: 2,
+    speed: {
+      question: "Which operation is naturally idempotent?",
+      correct: "SET status = 'shipped'",
+      distractors: [
+        "INCREMENT quantity BY 1",
+        "APPEND item TO list",
+        "ADJUST balance BY -10",
+      ],
+    },
   },
   {
     id: "dedup-unique-constraints",
@@ -180,6 +321,17 @@ export const transactionCards: Card[] = [
       "data-stores.indexing",
     ],
     tier: 2,
+    speed: {
+      question:
+        "What is the pitfall when deduplicating with a key and a unique constraint?",
+      correct:
+        "The dedup record and the side effect must commit together, or a crash between them breaks it",
+      distractors: [
+        "Unique constraints cannot be enforced across partitions",
+        "The key must be generated by the server to guarantee uniqueness",
+        "Retries will hit the constraint and surface an error to the user",
+      ],
+    },
   },
   {
     id: "upserts",
@@ -195,5 +347,15 @@ export const transactionCards: Card[] = [
       "transactions.lost-update",
     ],
     tier: 1,
+    speed: {
+      question: "Why is an upsert better than SELECT-then-INSERT-or-UPDATE?",
+      correct:
+        "It is one atomic statement resolved against a unique index, so there is no race",
+      distractors: [
+        "It avoids a second network round trip to the database",
+        "It works at a lower isolation level than the two-statement version",
+        "It locks fewer rows, so it reduces deadlock risk",
+      ],
+    },
   },
 ]

@@ -17,6 +17,27 @@ export type Card = {
   emFraming?: string
   topicIds: TopicId[]
   tier: 1 | 2 | 3
+  /**
+   * The multiple-choice variant, for Speed mode.
+   *
+   * Deliberately NOT the prose answer above with three others beside it. Four
+   * paragraphs is a reading-comprehension test, not a recall drill, so the
+   * speed variant asks a tighter question with one-line options.
+   *
+   * Every distractor should be a mistake somebody actually makes -- a real
+   * misconception, a neighbouring concept, or the thing that is true of a
+   * different level or mode. Options nobody would pick teach nothing and make
+   * the right answer findable by elimination.
+   */
+  speed: SpeedVariant
+}
+
+export type SpeedVariant = {
+  /** Overrides the card's prompt when it needs to be sharper for one line. */
+  question?: string
+  correct: string
+  /** Exactly three, each wrong for a different reason. */
+  distractors: [string, string, string]
 }
 
 /**

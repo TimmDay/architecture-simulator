@@ -15,6 +15,16 @@ export const frontendAndApiCards: Card[] = [
       "caching.edge-caching",
     ],
     tier: 1,
+    speed: {
+      question:
+        "What does server-side rendering cost you that client-side rendering does not?",
+      correct: "CPU on a server you pay for, on every page view",
+      distractors: [
+        "Search engine visibility, because crawlers see an empty page",
+        "A larger JavaScript bundle for the user to download",
+        "The ability to cache anything at the edge",
+      ],
+    },
   },
   {
     id: "client-validation",
@@ -30,6 +40,16 @@ export const frontendAndApiCards: Card[] = [
       "security.authn-vs-authz",
     ],
     tier: 1,
+    speed: {
+      question: "What is client-side validation actually for?",
+      correct:
+        "Immediate feedback for the user — it is UX, not a security or capacity control",
+      distractors: [
+        "Reducing load on the API by rejecting bad requests early",
+        "Protecting against injection attacks before data reaches the server",
+        "Enforcing business rules consistently across web and mobile",
+      ],
+    },
   },
   {
     id: "client-retry-behaviour",
@@ -45,6 +65,17 @@ export const frontendAndApiCards: Card[] = [
       "messaging.backpressure",
     ],
     tier: 2,
+    speed: {
+      question:
+        "Why is 'retry immediately' more dangerous in a browser than in a server-side job?",
+      correct:
+        "Thousands of clients see the same failure at the same instant and retry in lockstep",
+      distractors: [
+        "Browsers cannot implement exponential backoff reliably",
+        "Client retries bypass the load balancer's rate limiting",
+        "Mobile networks duplicate requests, multiplying the effect",
+      ],
+    },
   },
   {
     id: "gateway-vs-load-balancer",
@@ -60,6 +91,16 @@ export const frontendAndApiCards: Card[] = [
       "security.rate-limiting",
     ],
     tier: 1,
+    speed: {
+      question: "What does an API gateway do that a load balancer does not?",
+      correct:
+        "Routes between many services, and handles auth, quotas and per-client rate limits",
+      distractors: [
+        "Spreads traffic across instances and removes unhealthy ones",
+        "Terminates TLS and handles certificate rotation",
+        "Caches responses at the edge, closer to users",
+      ],
+    },
   },
   {
     id: "bff-pattern",
@@ -71,6 +112,16 @@ export const frontendAndApiCards: Card[] = [
       "This is a Conway's Law decision as much as a technical one: a BFF works when the client team owns it, and becomes a bottleneck the moment a separate backend team is asked to maintain three of them.",
     topicIds: ["api.gateway-and-bff", "org.conways-law", "api.n-plus-one"],
     tier: 2,
+    speed: {
+      question: "What does a Backend-for-Frontend cost you?",
+      correct:
+        "Another deployable per client, duplicated logic, and one more hop of latency",
+      distractors: [
+        "Strong coupling between the web and mobile release cycles",
+        "The ability to version your public API independently",
+        "Consistency, since each BFF reads from a different database",
+      ],
+    },
   },
   {
     id: "bundle-and-cache-headers",
@@ -86,5 +137,15 @@ export const frontendAndApiCards: Card[] = [
       "caching.ttl-and-staleness",
     ],
     tier: 2,
+    speed: {
+      question: "Why hash asset filenames and cache them for a year?",
+      correct:
+        "A given URL's contents can never change, so it needs no revalidation and deploys need no invalidation",
+      distractors: [
+        "It lets the CDN compress assets more aggressively",
+        "Browsers refuse to cache files without a content hash",
+        "It prevents users loading assets from a stale service worker",
+      ],
+    },
   },
 ]
