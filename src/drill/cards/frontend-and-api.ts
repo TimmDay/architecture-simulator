@@ -2,6 +2,64 @@ import type { Card } from "../types"
 
 export const frontendAndApiCards: Card[] = [
   {
+    id: "rest-api-design",
+    prompt:
+      "What makes a REST API well designed? Name the properties that actually matter and say what each one buys you.",
+    answer:
+      "Resources, not actions: URLs name things (`/orders/42/items`) and the HTTP method says what you are doing to them, so the API is predictable without documentation. Methods carry their standard semantics -- GET is safe and cacheable, PUT and DELETE are idempotent, POST is neither -- because every proxy, CDN and client library already assumes this. Status codes are used honestly, so 404 means absent, 409 means a conflict, 422 means it parsed but was invalid, and a 200 containing an error body breaks every caller's error handling. Responses are stateless, so any instance can serve any request. Collections are paginated by cursor rather than offset, because offsets skip and duplicate rows while the data changes underneath them. Errors have one machine-readable shape across every endpoint. Versioning is explicit, so you can change your mind later. And unsafe operations accept an idempotency key, because clients retry.",
+    emFraming:
+      'The two failures worth catching in review are RPC wearing REST\'s clothes -- `POST /createOrderAndSendEmail` -- and returning 200 with `{"error": ...}`, which forces every client to parse the body to find out whether it worked. Both are cheap to fix on day one and expensive once there are callers you do not control. Note also that HATEOAS is in the original definition of REST and almost nobody implements it; being able to say that plainly is better than pretending either way.',
+    topicIds: [
+      "api.rest-design",
+      "api.status-codes",
+      "api.versioning",
+      "api.pagination",
+    ],
+    tier: 1,
+    speed: [
+      {
+        question: "Which URL is the most RESTful?",
+        correct: "POST /orders/42/refunds",
+        distractors: [
+          "POST /refundOrder?id=42",
+          "GET /orders/42/refund?confirm=true",
+          "POST /api/order/refund/42/execute",
+        ],
+      },
+      {
+        question: "Which HTTP methods must be idempotent?",
+        correct: "GET, PUT and DELETE — but not POST",
+        distractors: [
+          "All of them, once the server deduplicates requests",
+          "GET and POST, since both are safe to repeat",
+          "Only GET; the rest change state so cannot be idempotent",
+        ],
+      },
+      {
+        question:
+          "Why is cursor pagination better than offset for a changing collection?",
+        correct:
+          "Offsets skip and duplicate rows when items are inserted or removed mid-traverse",
+        distractors: [
+          "Cursors let the client jump directly to any page",
+          "Offsets require a full table scan on every page",
+          "Cursors guarantee the total count stays accurate",
+        ],
+      },
+      {
+        question:
+          "An endpoint parses the request fine but the value fails a business rule. Which status?",
+        correct: "422 Unprocessable Content",
+        distractors: [
+          "400 Bad Request",
+          "200 OK with an error object in the body",
+          "500 Internal Server Error",
+        ],
+      },
+    ],
+  },
+
+  {
     id: "rendering-strategies",
     prompt:
       "Static, server-rendered and client-rendered: what does each cost you, and what does each buy?",
@@ -15,6 +73,18 @@ export const frontendAndApiCards: Card[] = [
       "caching.edge-caching",
     ],
     tier: 1,
+    speed: [
+      {
+        question:
+          "What does server-side rendering cost you that client-side rendering does not?",
+        correct: "CPU on a server you pay for, on every page view",
+        distractors: [
+          "Search engine visibility, because crawlers see an empty page",
+          "A larger JavaScript bundle for the user to download",
+          "The ability to cache anything at the edge",
+        ],
+      },
+    ],
   },
   {
     id: "client-validation",
@@ -30,6 +100,18 @@ export const frontendAndApiCards: Card[] = [
       "security.authn-vs-authz",
     ],
     tier: 1,
+    speed: [
+      {
+        question: "What is client-side validation actually for?",
+        correct:
+          "Immediate feedback for the user — it is UX, not a security or capacity control",
+        distractors: [
+          "Reducing load on the API by rejecting bad requests early",
+          "Protecting against injection attacks before data reaches the server",
+          "Enforcing business rules consistently across web and mobile",
+        ],
+      },
+    ],
   },
   {
     id: "client-retry-behaviour",
@@ -45,6 +127,19 @@ export const frontendAndApiCards: Card[] = [
       "messaging.backpressure",
     ],
     tier: 2,
+    speed: [
+      {
+        question:
+          "Why is 'retry immediately' more dangerous in a browser than in a server-side job?",
+        correct:
+          "Thousands of clients see the same failure at the same instant and retry in lockstep",
+        distractors: [
+          "Browsers cannot implement exponential backoff reliably",
+          "Client retries bypass the load balancer's rate limiting",
+          "Mobile networks duplicate requests, multiplying the effect",
+        ],
+      },
+    ],
   },
   {
     id: "gateway-vs-load-balancer",
@@ -60,6 +155,18 @@ export const frontendAndApiCards: Card[] = [
       "security.rate-limiting",
     ],
     tier: 1,
+    speed: [
+      {
+        question: "What does an API gateway do that a load balancer does not?",
+        correct:
+          "Routes between many services, and handles auth, quotas and per-client rate limits",
+        distractors: [
+          "Spreads traffic across instances and removes unhealthy ones",
+          "Terminates TLS and handles certificate rotation",
+          "Caches responses at the edge, closer to users",
+        ],
+      },
+    ],
   },
   {
     id: "bff-pattern",
@@ -71,6 +178,18 @@ export const frontendAndApiCards: Card[] = [
       "This is a Conway's Law decision as much as a technical one: a BFF works when the client team owns it, and becomes a bottleneck the moment a separate backend team is asked to maintain three of them.",
     topicIds: ["api.gateway-and-bff", "org.conways-law", "api.n-plus-one"],
     tier: 2,
+    speed: [
+      {
+        question: "What does a Backend-for-Frontend cost you?",
+        correct:
+          "Another deployable per client, duplicated logic, and one more hop of latency",
+        distractors: [
+          "Strong coupling between the web and mobile release cycles",
+          "The ability to version your public API independently",
+          "Consistency, since each BFF reads from a different database",
+        ],
+      },
+    ],
   },
   {
     id: "bundle-and-cache-headers",
@@ -86,5 +205,17 @@ export const frontendAndApiCards: Card[] = [
       "caching.ttl-and-staleness",
     ],
     tier: 2,
+    speed: [
+      {
+        question: "Why hash asset filenames and cache them for a year?",
+        correct:
+          "A given URL's contents can never change, so it needs no revalidation and deploys need no invalidation",
+        distractors: [
+          "It lets the CDN compress assets more aggressively",
+          "Browsers refuse to cache files without a content hash",
+          "It prevents users loading assets from a stale service worker",
+        ],
+      },
+    ],
   },
 ]

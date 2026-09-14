@@ -3,8 +3,25 @@ import type { TopicId } from "~/topics"
 /** Self-assessed recall quality, in SM-2 order. */
 export type Grade = "again" | "hard" | "good" | "easy"
 
+/**
+ * Which deck a card belongs to.
+ *
+ * `core` cards are the ones worth writing a paragraph about -- mechanisms,
+ * trade-offs, the things an interviewer will push on. They appear in both modes.
+ *
+ * `vocabulary` cards are one-line definitions of the terms themselves. They
+ * exist so the language stops costing you effort: you should not be working out
+ * what "quorum" means while also reasoning about whether you need one. They are
+ * Speed-only on purpose -- typing out "all reads see the latest write" and then
+ * grading yourself on it is ceremony, and it would clog the review queue that
+ * the harder cards depend on.
+ */
+export type Deck = "core" | "vocabulary"
+
 export type Card = {
   id: string
+  /** Defaults to "core" where a module does not say otherwise. */
+  deck?: Deck
   /** What you are asked. Phrased to demand an explanation, not a word. */
   prompt: string
   /** The answer you grade yourself against. */
@@ -15,8 +32,40 @@ export type Card = {
    * below the model answer on the flip, never used for grading.
    */
   emFraming?: string
+  /**
+   * What this card teaches. The FIRST one is the primary topic and is what the
+   * card's interview weighting comes from -- a card about IaC that happens to
+   * mention rollback should not inherit rollback's importance.
+   */
   topicIds: TopicId[]
   tier: 1 | 2 | 3
+  /**
+   * The multiple-choice variant, for Speed mode.
+   *
+   * Deliberately NOT the prose answer above with three others beside it. Four
+   * paragraphs is a reading-comprehension test, not a recall drill, so the
+   * speed variant asks a tighter question with one-line options.
+   *
+   * Every distractor should be a mistake somebody actually makes -- a real
+   * misconception, a neighbouring concept, or the thing that is true of a
+   * different level or mode. Options nobody would pick teach nothing and make
+   * the right answer findable by elimination.
+   *
+   * A list, because a Discuss answer often carries several separable claims and
+   * one multiple-choice question can only probe one of them. Most cards keep a
+   * single variant; the ones whose answer genuinely contains three independent
+   * facts get three. Padding a single-fact card out to hit a quota produces
+   * filler, so the count follows the material rather than a rule.
+   */
+  speed: SpeedVariant[]
+}
+
+export type SpeedVariant = {
+  /** Overrides the card's prompt when it needs to be sharper for one line. */
+  question?: string
+  correct: string
+  /** Exactly three, each wrong for a different reason. */
+  distractors: [string, string, string]
 }
 
 /**

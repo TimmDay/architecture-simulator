@@ -14,11 +14,28 @@ describe("deck coverage", () => {
       )
       for (const t of card.topicIds)
         expect(TOPICS[t], `${card.id}: unknown topic ${t}`).toBeDefined()
+    }
+  })
+
+  it("holds core cards to a real explanation", () => {
+    for (const card of ALL_CARDS.filter((c) => c.deck !== "vocabulary")) {
       expect(
         card.answer.length,
         `${card.id} has a stub answer`,
       ).toBeGreaterThan(80)
       expect(card.prompt.length).toBeGreaterThan(20)
+    }
+  })
+
+  it("keeps vocabulary definitions to one line", () => {
+    // The point of them is that the term stops costing effort. A paragraph
+    // would defeat that, and clog the queue the core cards depend on.
+    const vocab = ALL_CARDS.filter((c) => c.deck === "vocabulary")
+    expect(vocab.length, "no vocabulary cards").toBeGreaterThan(30)
+    for (const card of vocab) {
+      expect(card.answer.length, `${card.id} is empty`).toBeGreaterThan(15)
+      expect(card.answer.length, `${card.id} is not one line`).toBeLessThan(110)
+      expect(card.speed, `${card.id} needs exactly one variant`).toHaveLength(1)
     }
   })
 
@@ -52,14 +69,14 @@ describe("deck coverage", () => {
     ).toEqual([])
   })
 
-  it("has no orphaned topics outside the long tail", () => {
-    // Not every topic needs a card yet, but the gap should be visible rather
-    // than silently growing.
+  it("has a card for every topic in the taxonomy", () => {
+    // The deck now covers all of it, so this is a ratchet: adding a topic
+    // without a card fails here rather than leaving a silently dead loop.
     const uncovered = ALL_TOPIC_IDS.filter((t) => !coveredByCards.has(t))
     expect(
-      uncovered.length,
-      `${uncovered.length} topics still have no card: ${uncovered.join(", ")}`,
-    ).toBeLessThan(45)
+      uncovered,
+      `${uncovered.length} topics have no card: ${uncovered.join(", ")}`,
+    ).toEqual([])
   })
 
   it("weights the deck toward what the simulator leans on", () => {

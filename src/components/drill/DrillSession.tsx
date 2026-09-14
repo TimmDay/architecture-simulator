@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Check, RotateCcw, Zap } from "lucide-react"
-import { ALL_CARDS } from "~/drill/cards"
+import { ALL_CARDS, CORE_CARDS } from "~/drill/cards"
 import { buildQueue, topicStrength, type QueueItem } from "~/drill/queue"
 import { newCardState, schedule, REQUEUE_GAP } from "~/drill/sm2"
 import type { CardState, Grade } from "~/drill/types"
 import { getProgressStore } from "~/storage"
+import { SpeedSession } from "./SpeedSession"
 import { DOMAINS, TOPICS, type DomainId } from "~/topics"
 
 const GRADES: {
@@ -41,7 +42,15 @@ const GRADES: {
   },
 ]
 
+type Mode = "discuss" | "speed"
+
 export function DrillSession() {
+  /**
+   * Discuss is the default because producing an answer is the harder skill and
+   * the one the schedule is built on. Speed is for volume and for the minutes
+   * before an interview.
+   */
+  const [mode, setMode] = useState<Mode>("discuss")
   const [states, setStates] = useState<Map<string, CardState> | null>(null)
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [index, setIndex] = useState(0)
@@ -57,6 +66,8 @@ export function DrillSession() {
       const existing = await store.getCardStates()
       const map = new Map(existing.map((s) => [s.cardId, s]))
       const fresh: CardState[] = []
+      // Vocabulary cards get state too -- a wrong answer in Speed still pulls
+      // them forward -- they simply never enter the Discuss queue.
       for (const card of ALL_CARDS) {
         if (!map.has(card.id)) {
           const s = newCardState(card.id)
@@ -67,7 +78,7 @@ export function DrillSession() {
       if (fresh.length) await store.saveCardStates(fresh)
       if (cancelled) return
       setStates(map)
-      setQueue(buildQueue(ALL_CARDS, map))
+      setQueue(buildQueue(CORE_CARDS, map))
     })()
     return () => {
       cancelled = true
@@ -110,10 +121,46 @@ export function DrillSession() {
     [states],
   )
 
+  const modeSwitch = (
+    <div className="border-line bg-panel mb-5 inline-flex rounded-lg border p-0.5">
+      {(
+        [
+          ["discuss", "Discuss", "Type it out, then judge yourself"],
+          ["speed", "Speed", "Multiple choice, no typing"],
+        ] as const
+      ).map(([value, label, hint]) => (
+        <button
+          key={value}
+          onClick={() => setMode(value)}
+          title={hint}
+          className={`rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-colors ${
+            mode === value
+              ? "bg-panel-2 text-chalk"
+              : "text-fog hover:text-chalk"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+
   if (!states) {
     return (
       <div className="text-fog mx-auto max-w-3xl px-6 py-20 text-sm">
         Loading deck…
+      </div>
+    )
+  }
+
+  // Speed mode draws on the whole deck rather than the due queue: it is for
+  // volume and for the minutes before an interview, not for the schedule.
+  if (mode === "speed") {
+    return (
+      <div className="mx-auto max-w-3xl px-6 py-10">
+        {modeSwitch}
+        <SpeedSession cards={ALL_CARDS} states={states} />
+        <MasteryGrid mastery={mastery} />
       </div>
     )
   }
@@ -144,6 +191,8 @@ export function DrillSession() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
+      {modeSwitch}
+
       <div className="text-fog mb-4 flex items-center justify-between text-xs">
         <span>
           {done + 1} / {queue.length} this session

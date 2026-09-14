@@ -15,6 +15,18 @@ export const dataAndCostCards: Card[] = [
       "reliability.redundancy",
     ],
     tier: 1,
+    speed: [
+      {
+        question: "Which protects you from a bad migration that drops a table?",
+        correct:
+          "A backup — a replica applies the DROP faithfully and instantly",
+        distractors: [
+          "A read replica, which can be promoted to the state before the change",
+          "A standby in another availability zone",
+          "Synchronous replication, which would have refused the write",
+        ],
+      },
+    ],
   },
   {
     id: "rpo-rto",
@@ -25,6 +37,18 @@ export const dataAndCostCards: Card[] = [
       "These are business decisions wearing technical clothes. Get the product owner to say the numbers out loud before you design; 'zero' is not an answer, it is a budget request.",
     topicIds: ["replication.rpo-rto", "replication.failover"],
     tier: 1,
+    speed: [
+      {
+        question: "What does lowering RPO cost you?",
+        correct:
+          "Write latency, from synchronous replication, or storage from more frequent backups",
+        distractors: [
+          "Standby infrastructure you pay for and rarely use",
+          "Read throughput, since replicas spend capacity confirming writes",
+          "Nothing, if the database is already replicated",
+        ],
+      },
+    ],
   },
   {
     id: "async-replication-failover",
@@ -40,6 +64,18 @@ export const dataAndCostCards: Card[] = [
       "replication.split-brain",
     ],
     tier: 1,
+    speed: [
+      {
+        question: "You fail over to an async replica. What just happened?",
+        correct:
+          "Every write acknowledged but not yet replicated is gone — and users were told they succeeded",
+        distractors: [
+          "Nothing is lost; the replica catches up from the primary's log after promotion",
+          "Reads become stale for the replication lag window, then recover",
+          "Writes are rejected until the old primary is fenced",
+        ],
+      },
+    ],
   },
   {
     id: "hot-key",
@@ -54,6 +90,18 @@ export const dataAndCostCards: Card[] = [
       "partitioning.rebalancing",
     ],
     tier: 2,
+    speed: [
+      {
+        question: "Why does adding shards not fix a hot key?",
+        correct:
+          "The key hashes to one shard however many there are — you added capacity everywhere but there",
+        distractors: [
+          "Rebalancing moves the hot key to a new shard, which then becomes hot",
+          "Each shard must still hold a copy of the hot key for consistency",
+          "It does fix it, as long as you use consistent hashing",
+        ],
+      },
+    ],
   },
   {
     id: "idempotency-key",
@@ -65,6 +113,18 @@ export const dataAndCostCards: Card[] = [
       "Note the client must generate the key, not the server -- a server-generated key cannot be reused by a retry that never got a response. This is the one design detail that separates payment integrations that work from ones that generate support tickets.",
     topicIds: ["transactions.idempotency", "reliability.retries-and-jitter"],
     tier: 1,
+    speed: [
+      {
+        question: "Who must generate an idempotency key, and why?",
+        correct:
+          "The client, per logical operation — a server-generated key cannot help a retry that got no response",
+        distractors: [
+          "The server, so it can guarantee global uniqueness",
+          "The load balancer, so all retries of one request route together",
+          "The database, using the primary key of the row being written",
+        ],
+      },
+    ],
   },
   {
     id: "saga-vs-2pc",
@@ -80,6 +140,18 @@ export const dataAndCostCards: Card[] = [
       "transactions.acid",
     ],
     tier: 2,
+    speed: [
+      {
+        question: "What does a saga give up compared to two-phase commit?",
+        correct:
+          "Isolation — intermediate states are visible, and rollback means running a semantic undo",
+        distractors: [
+          "Atomicity — some steps may simply never run",
+          "Durability — completed steps can be lost on coordinator failure",
+          "Nothing; it is strictly better, which is why microservices use it",
+        ],
+      },
+    ],
   },
   {
     id: "outbox",
@@ -91,6 +163,19 @@ export const dataAndCostCards: Card[] = [
       "This is the single most common source of 'the data is right but the downstream system disagrees' bugs, and it is invisible in testing because the failure window is milliseconds wide.",
     topicIds: ["transactions.outbox", "messaging.delivery-semantics"],
     tier: 2,
+    speed: [
+      {
+        question:
+          "Why can you not just write to the database and then publish the event?",
+        correct:
+          "They are not atomic — a crash between them leaves state changed with no event, or vice versa",
+        distractors: [
+          "Publishing is slower than the write, so it blows the latency budget",
+          "The broker may reorder the event relative to the database write",
+          "The event may be published before the transaction's isolation level allows reading it",
+        ],
+      },
+    ],
   },
   {
     id: "unit-economics",
@@ -102,6 +187,19 @@ export const dataAndCostCards: Card[] = [
       "As a manager this is the number to be able to quote. It converts 'infrastructure is expensive' into 'we spend $0.004 per order and it was $0.003 last quarter', which is a conversation that can actually be had with a finance team.",
     topicIds: ["cost.unit-economics", "cost.right-sizing"],
     tier: 1,
+    speed: [
+      {
+        question:
+          "What turns an infrastructure bill into an engineering decision?",
+        correct:
+          "Cost per unit of business value — per order, per tenant, per active user",
+        distractors: [
+          "A month-over-month trend of the absolute spend",
+          "Comparing your bill against a competitor's published pricing",
+          "Tagging every resource by team so costs can be attributed",
+        ],
+      },
+    ],
   },
   {
     id: "conways-law",
@@ -117,6 +215,19 @@ export const dataAndCostCards: Card[] = [
       "styles.microservices",
     ],
     tier: 1,
+    speed: [
+      {
+        question:
+          "What is the practical consequence of Conway's Law for a proposed architecture?",
+        correct:
+          "If the service boundaries do not match team boundaries, one of the two will move",
+        distractors: [
+          "Smaller teams inevitably produce simpler systems",
+          "Architecture documents should be written by the team that will own the code",
+          "Communication overhead grows quadratically, so teams should be kept under seven people",
+        ],
+      },
+    ],
   },
   {
     id: "n-plus-one-api",
@@ -128,5 +239,17 @@ export const dataAndCostCards: Card[] = [
       "In a distributed system the network cost dominates and the p99 of the slowest of N calls governs your response time -- with N=100 you are essentially guaranteed to hit someone's p99 on every request. Batch endpoints exist for this reason.",
     topicIds: ["api.n-plus-one", "fundamentals.percentiles"],
     tier: 1,
+    speed: [
+      {
+        question: "Why does an N+1 hide so well in testing?",
+        correct:
+          "With five test records it is six fast calls; with five hundred it is 501",
+        distractors: [
+          "Test environments mock the downstream service entirely",
+          "It only appears when the downstream service is under load",
+          "Connection pooling masks it until the pool is exhausted",
+        ],
+      },
+    ],
   },
 ]

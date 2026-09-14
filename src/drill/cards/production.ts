@@ -11,6 +11,19 @@ export const productionCards: Card[] = [
       "The failure mode to manage is the inverted pyramid: a large end-to-end suite that takes forty minutes, fails intermittently, and is therefore re-run rather than read. At that point the suite has stopped being a signal and has become a tax.",
     topicIds: ["delivery.testing-pyramid"],
     tier: 1,
+    speed: [
+      {
+        question:
+          "What does an integration test prove that a unit test cannot?",
+        correct:
+          "That your code works against a real collaborator — the wiring, queries and serialisation",
+        distractors: [
+          "That a whole user journey works through the deployed system",
+          "That the logic is correct for edge cases and error paths",
+          "That the system performs acceptably under concurrent load",
+        ],
+      },
+    ],
   },
   {
     id: "blue-green",
@@ -26,6 +39,28 @@ export const productionCards: Card[] = [
       "delivery.rollback",
     ],
     tier: 1,
+    speed: [
+      {
+        question: "What does blue/green NOT protect you from?",
+        correct:
+          "A destructive schema migration — the old version can no longer read the database",
+        distractors: [
+          "A bad release reaching all users at once",
+          "A slow rollback while instances restart",
+          "Configuration drift between the two environments",
+        ],
+      },
+      {
+        question: "What makes blue/green's rollback instant?",
+        correct:
+          "The old environment is still running and untouched — you cut traffic back",
+        distractors: [
+          "The previous container image is cached on every host",
+          "Deployments are applied as a reversible database transaction",
+          "Traffic is mirrored to both environments during the cutover",
+        ],
+      },
+    ],
   },
   {
     id: "canary-release",
@@ -41,6 +76,18 @@ export const productionCards: Card[] = [
       "reliability.slo-sli-error-budget",
     ],
     tier: 1,
+    speed: [
+      {
+        question: "What must exist for a canary to be worth doing?",
+        correct:
+          "Metrics labelled by version, and thresholds agreed before you start",
+        distractors: [
+          "A separate environment identical to production",
+          "A feature flag wrapping every changed code path",
+          "Automated rollback triggered by any error in the new version",
+        ],
+      },
+    ],
   },
   {
     id: "rollback-mechanics",
@@ -56,6 +103,18 @@ export const productionCards: Card[] = [
       "delivery.blue-green",
     ],
     tier: 1,
+    speed: [
+      {
+        question: "What most commonly makes a rollback impossible?",
+        correct:
+          "The new version changed shared state irreversibly — a destructive migration or a new message format",
+        distractors: [
+          "The previous container image has already been garbage collected",
+          "The deploy pipeline only moves forward, never backward",
+          "Traffic has already been cut over at the load balancer",
+        ],
+      },
+    ],
   },
   {
     id: "feature-flags",
@@ -67,6 +126,18 @@ export const productionCards: Card[] = [
       "Treat a flag as having a removal date from the day it is created. The failure mode is not any single flag but a codebase with two hundred of them, where nobody knows which combinations have ever actually run.",
     topicIds: ["delivery.feature-flags", "delivery.canary"],
     tier: 1,
+    speed: [
+      {
+        question: "What do feature flags cost you?",
+        correct:
+          "Every flag doubles the paths through the code, and stale ones become untested branches",
+        distractors: [
+          "A deploy for every change to who can see the feature",
+          "The ability to roll back, since the flag state is not versioned",
+          "Latency, because each request must check the flag service synchronously",
+        ],
+      },
+    ],
   },
   {
     id: "state-vs-compute",
@@ -82,6 +153,28 @@ export const productionCards: Card[] = [
       "scaling.autoscaling",
     ],
     tier: 1,
+    speed: [
+      {
+        question: "What makes compute 'interchangeable' in this sense?",
+        correct:
+          "It holds nothing that cannot be reconstructed, so instances can be killed freely",
+        distractors: [
+          "It runs in containers rather than on virtual machines",
+          "It scales automatically in response to load",
+          "It is stateless between requests but keeps a local cache",
+        ],
+      },
+      {
+        question:
+          "Which of these blurs state and compute, and costs you disposability?",
+        correct: "Keeping uploaded files on the instance's local disk",
+        distractors: [
+          "Reading configuration from environment variables at startup",
+          "Caching database results in a shared Redis",
+          "Writing structured logs to stdout",
+        ],
+      },
+    ],
   },
   {
     id: "slo-definition",
@@ -97,6 +190,27 @@ export const productionCards: Card[] = [
       "fundamentals.percentiles",
     ],
     tier: 1,
+    speed: [
+      {
+        question: "Which makes an SLO useless?",
+        correct: "Nothing changing when it is missed",
+        distractors: [
+          "Setting the target below 100%",
+          "Measuring over a rolling window rather than a calendar month",
+          "Choosing a latency threshold rather than an availability one",
+        ],
+      },
+      {
+        question: "What is an SLI, as distinct from an SLO?",
+        correct:
+          "The measurement itself — the proportion of requests served successfully under a threshold",
+        distractors: [
+          "The target you commit to, over a rolling window",
+          "The contractual penalty owed when the target is missed",
+          "The budget of allowed failure implied by the target",
+        ],
+      },
+    ],
   },
   {
     id: "cache-stampede",
@@ -112,6 +226,27 @@ export const productionCards: Card[] = [
       "caching.cache-aside",
     ],
     tier: 1,
+    speed: [
+      {
+        question: "Which signal suggests a stampede is in progress?",
+        correct: "Cache hit rate rising during an incident",
+        distractors: [
+          "Cache hit rate falling steadily over several hours",
+          "Memory usage on the cache climbing toward its limit",
+          "Eviction rate increasing while request volume is flat",
+        ],
+      },
+      {
+        question: "Which stampede mitigation needs no per-key locking?",
+        correct:
+          "Probabilistic early expiry — refresh slightly before the TTL, with rising likelihood",
+        distractors: [
+          "Request coalescing, where one caller fetches and the rest wait",
+          "Never expiring hot keys and invalidating them explicitly",
+          "Serving stale content while refreshing in the background",
+        ],
+      },
+    ],
   },
   {
     id: "rate-limiting-mechanics",
@@ -127,5 +262,13 @@ export const productionCards: Card[] = [
       "security.ddos",
     ],
     tier: 1,
+    speed: [
+      {
+        question:
+          "Which algorithm naturally allows bursts up to a configured size?",
+        correct: "Token bucket",
+        distractors: ["Fixed window", "Sliding window log", "Leaky bucket"],
+      },
+    ],
   },
 ]

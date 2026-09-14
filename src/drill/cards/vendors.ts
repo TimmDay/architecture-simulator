@@ -11,6 +11,18 @@ export const vendorCards: Card[] = [
       "Practically, this is what makes chatty cross-cloud and cross-region links expensive, and it is why 'we'll just read it from the other provider' should be priced at projected volume before anyone builds it. It is also the main reason data gravity is real: the data stays where it is because moving it costs more than leaving it.",
     topicIds: ["cost.egress", "cost.unit-economics"],
     tier: 1,
+    speed: [
+      {
+        question: "Why does egress deserve its own line in a review?",
+        correct:
+          "It is invisible in a prototype, scales with traffic, and appears in no service's sticker price",
+        distractors: [
+          "It is charged at a higher rate than compute per unit",
+          "It is billed monthly in arrears, so it lags the forecast",
+          "Providers cap it, so exceeding the cap throttles your service",
+        ],
+      },
+    ],
   },
   {
     id: "vendor-concentration",
@@ -26,6 +38,18 @@ export const vendorCards: Card[] = [
       "replication.rpo-rto",
     ],
     tier: 1,
+    speed: [
+      {
+        question: "What is the proportionate response to single-provider risk?",
+        correct:
+          "Multi-region within that provider, plus knowing what an exit would actually cost",
+        distractors: [
+          "Running a second cloud in active-active",
+          "Keeping a cold standby with another provider",
+          "Abstracting every service behind your own interfaces",
+        ],
+      },
+    ],
   },
   {
     id: "build-vs-buy",
@@ -41,5 +65,18 @@ export const vendorCards: Card[] = [
       "cost.unit-economics",
     ],
     tier: 1,
+    speed: [
+      {
+        question:
+          "What is the right comparison when deciding whether to self-host a database?",
+        correct:
+          "The managed invoice against the fully-loaded cost of operating it properly",
+        distractors: [
+          "The instance price against the managed service's price",
+          "Your current scale against the point where managed pricing overtakes hardware",
+          "The feature list of each option against your requirements",
+        ],
+      },
+    ],
   },
 ]
