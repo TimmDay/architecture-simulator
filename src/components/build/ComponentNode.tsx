@@ -23,6 +23,7 @@ import {
   Server,
   Zap,
 } from "lucide-react"
+import { CATALOGUE } from "~/sim/catalogue"
 import { vendorLabel } from "~/sim/simulate"
 import type {
   ComponentKind,
@@ -72,6 +73,23 @@ const MAX_STACK = 4
  * distinct, because "is this tier redundant?" is the question the stack exists
  * to answer at a glance.
  */
+/**
+ * The component kind to show before a custom label, or null where it would
+ * merely repeat the name.
+ *
+ * Matched on substring rather than equality: "Public load balancer" and
+ * "Page cache" already say what they are, and prefixing them produces noise
+ * that trains nothing.
+ */
+export function kindPrefixFor(component: PlacedComponent): string | null {
+  const spec = CATALOGUE[component.kind]
+  if (!spec) return null
+  if (component.label.toLowerCase().includes(spec.shortName.toLowerCase())) {
+    return null
+  }
+  return spec.shortName
+}
+
 export function stackLayers(instances: number): number {
   return Math.max(0, Math.min(instances - 1, MAX_STACK))
 }
@@ -84,6 +102,7 @@ export function ComponentNode({
   const Icon = ICONS[component.kind] ?? Boxes
   const util = metrics?.utilization ?? 0
   const vendor = vendorLabel(component)
+  const kindPrefix = kindPrefixFor(component)
   const hot = Number.isFinite(util) && util >= 0.8
   const over = !Number.isFinite(util) || util >= 1
 
@@ -119,14 +138,23 @@ export function ComponentNode({
         />
       ))}
       <div
-        className={`bg-panel relative min-w-[152px] rounded-lg border-2 px-3 py-2.5 transition-colors ${border} ${
+        className={`bg-panel relative max-w-[260px] min-w-[152px] rounded-lg border-2 px-3 py-2.5 transition-colors ${border} ${
           dead ? "opacity-50" : ""
         }`}
       >
         <Handle type="target" position={Position.Left} />
-        <div className="flex items-center gap-2">
-          <Icon size={14} className={dead ? "text-fail" : "text-accent"} />
-          <span className="text-chalk truncate text-[13px] font-medium">
+        <div className="flex items-start gap-2">
+          <Icon
+            size={14}
+            className={`mt-0.5 shrink-0 ${dead ? "text-fail" : "text-accent"}`}
+          />
+          <span className="text-chalk text-[13px] leading-snug font-medium">
+            {/* The kind in front of the name, so every diagram is also
+                vocabulary practice: "Queue: Render jobs" rather than "Render
+                jobs". Suppressed where the name already says it. */}
+            {kindPrefix && (
+              <span className="text-fog font-normal">{kindPrefix}: </span>
+            )}
             {component.label}
           </span>
         </div>
