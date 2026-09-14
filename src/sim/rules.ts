@@ -74,7 +74,11 @@ export const RULES: Rule[] = [
           v({
             ruleId: "topology.spof",
             topicIds: ["reliability.redundancy", "reliability.failure-domains"],
-            severity: c.kind === "sql-primary" ? "warn" : "fail",
+            // Losing a component whose failure only degrades the system is
+            // worth saying, but it is not the same finding as losing one that
+            // stops it. This matches how availability already treats them.
+            severity:
+              c.kind === "sql-primary" || spec.optionalOnPath ? "warn" : "fail",
             title: `${c.label} is a single point of failure`,
             explanation:
               c.instances > 1
@@ -738,7 +742,16 @@ export const RULES: Rule[] = [
     category: "capacity",
     check: ({ graph, scenario }) => {
       if (!scenario.features.includes("background-processing")) return null
-      const worker = graph.components.find((c) => c.kind === "worker")
+      // Any kind of background compute counts. Checking only for `worker` meant
+      // a design that did its rendering on a GPU fleet was told it had no
+      // background processing at all.
+      const worker = graph.components.find(
+        (c) =>
+          c.kind === "worker" ||
+          c.kind === "gpu-worker" ||
+          c.kind === "stream-processor" ||
+          c.kind === "serverless-function",
+      )
       if (worker) return null
       const app = graph.components.find((c) => c.kind === "app-server")
       if (!app) return null

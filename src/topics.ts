@@ -188,6 +188,33 @@ export const TOPICS = {
   },
   "transactions.idempotency": { domain: "transactions", label: "Idempotency" },
 
+  "transactions.atomicity": {
+    domain: "transactions",
+    label: "Atomicity",
+  },
+  "transactions.lost-update": {
+    domain: "transactions",
+    label: "Lost updates",
+  },
+  "transactions.mvcc": { domain: "transactions", label: "MVCC" },
+  "transactions.optimistic-locking": {
+    domain: "transactions",
+    label: "Optimistic locking",
+  },
+  "transactions.pessimistic-locking": {
+    domain: "transactions",
+    label: "Pessimistic locking",
+  },
+  "transactions.deadlocks": {
+    domain: "transactions",
+    label: "Lock contention and deadlocks",
+  },
+  "transactions.upsert": { domain: "transactions", label: "Upserts" },
+  "transactions.compensating-actions": {
+    domain: "transactions",
+    label: "Compensating actions",
+  },
+
   // messaging
   "messaging.queue-vs-log": { domain: "messaging", label: "Queue vs log" },
   "messaging.delivery-semantics": {
@@ -199,6 +226,16 @@ export const TOPICS = {
   "messaging.dlq": { domain: "messaging", label: "Dead-letter queues" },
   "messaging.consumer-lag": { domain: "messaging", label: "Consumer lag" },
   "messaging.fanout": { domain: "messaging", label: "Fanout" },
+
+  "messaging.kafka-partitions": {
+    domain: "messaging",
+    label: "Topics and partitions",
+  },
+  "messaging.consumer-groups": {
+    domain: "messaging",
+    label: "Consumer groups",
+  },
+  "messaging.offsets": { domain: "messaging", label: "Offsets and commits" },
 
   // styles
   "styles.monolith": { domain: "styles", label: "Monolith" },
@@ -259,6 +296,19 @@ export const TOPICS = {
   },
   "reliability.chaos": { domain: "reliability", label: "Chaos engineering" },
 
+  "partitioning.shard-key": {
+    domain: "partitioning",
+    label: "Choosing a shard key",
+  },
+  "partitioning.global-invariants": {
+    domain: "partitioning",
+    label: "Invariants across partitions",
+  },
+  "reliability.state-vs-compute": {
+    domain: "reliability",
+    label: "Authoritative state vs compute",
+  },
+
   // observability
   "observability.metrics-logs-traces": {
     domain: "observability",
@@ -310,6 +360,12 @@ export const TOPICS = {
     label: "Expand-contract migrations",
   },
   "delivery.iac": { domain: "delivery", label: "Infrastructure as code" },
+
+  "delivery.testing-pyramid": {
+    domain: "delivery",
+    label: "Unit, integration and end-to-end tests",
+  },
+  "delivery.rollback": { domain: "delivery", label: "Rollback" },
 
   // cost
   "cost.unit-economics": { domain: "cost", label: "Unit economics" },

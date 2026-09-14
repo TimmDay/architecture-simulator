@@ -23,6 +23,7 @@ export type ComponentKind =
   | "app-server"
   | "third-party-api"
   | "worker"
+  | "gpu-worker"
   | "serverless-function"
   | "cache"
   | "sql-primary"
@@ -223,6 +224,11 @@ export type PlacedComponent = {
     standby?: boolean
     /** Which product, by `VendorOption.id`. */
     vendor?: string
+    /**
+     * Request coalescing or early recomputation, so that a key expiring does
+     * not send every concurrent reader to the origin at the same instant.
+     */
+    stampedeProtection?: boolean
     /** A dead-letter queue, so one bad message cannot block the whole line. */
     deadLetterQueue?: boolean
     /** Requests carry an idempotency key, so a retry cannot double-charge. */

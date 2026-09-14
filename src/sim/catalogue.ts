@@ -274,6 +274,36 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     supports: { replicas: false, autoscale: true },
   },
 
+  "gpu-worker": {
+    kind: "gpu-worker",
+    label: "GPU / render worker",
+    // Rendering a video or running a model is seconds of work, not
+    // milliseconds. One instance finishing roughly one job a second is
+    // generous; the point is that capacity here is bought by the job, and the
+    // fleet becomes the largest line on the bill.
+    capacity: { readRps: 1, writeRps: 1 },
+    baseLatency: { p50Ms: 900, p99Ms: 4_000 },
+    baselineAvailability: 0.99,
+    stateful: false,
+    durable: false,
+    managed: false,
+    optionalOnPath: false,
+    clientSide: false,
+    canAddRedundancy: true,
+    caches: false,
+    routesTraffic: false,
+    costPerInstanceHourUsd: 0.9, // ~$657/mo -- accelerated instances are not cheap
+    failureModes: ["process-crash", "az-loss"],
+    supports: { replicas: false, autoscale: true },
+    vendors: [
+      { id: "ec2-gpu", label: "AWS EC2 GPU instances", family: "aws" },
+      { id: "gcp-gpu", label: "Google Compute GPU", family: "gcp" },
+      { id: "azure-gpu", label: "Azure NC-series", family: "azure" },
+      { id: "modal", label: "Modal", family: "independent" },
+      { id: "runpod", label: "RunPod", family: "independent" },
+    ],
+  },
+
   "object-store": {
     kind: "object-store",
     label: "Object store",
@@ -326,6 +356,188 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
     costPerInstanceHourUsd: 0, // billed per transaction, not per hour
     failureModes: ["region-loss"],
     supports: { replicas: false },
+  },
+
+  "log-stream": {
+    kind: "log-stream",
+    label: "Event log (Kafka)",
+    // An ordered, retained log rather than a queue: reading does not consume,
+    // so several independent consumer groups can each read all of it.
+    capacity: { readRps: 50_000, writeRps: 50_000 },
+    baseLatency: { p50Ms: 4, p99Ms: 18 },
+    baselineAvailability: 0.9995,
+    stateful: true,
+    durable: true,
+    managed: true,
+    optionalOnPath: false,
+    clientSide: false,
+    canAddRedundancy: true,
+    caches: false,
+    routesTraffic: false,
+    // NOT a router: every consumer group receives the whole stream. Splitting
+    // it between them would model a queue, which is the other thing entirely.
+    costPerInstanceHourUsd: 0.12, // ~$88/mo per broker
+    failureModes: ["az-loss", "disk-failure", "replication-stall"],
+    supports: { replicas: true, consistencyModes: ["strong"] },
+    vendors: [
+      { id: "msk", label: "AWS MSK", family: "aws" },
+      { id: "confluent", label: "Confluent Cloud", family: "independent" },
+      { id: "gcp-kafka", label: "Google Managed Kafka", family: "gcp" },
+      { id: "eventhubs", label: "Azure Event Hubs", family: "azure" },
+      { id: "kafka-self", label: "Self-managed Kafka", family: "self-hosted" },
+    ],
+  },
+
+  "shard-router": {
+    kind: "shard-router",
+    label: "Shard router",
+    capacity: { readRps: 20_000, writeRps: 20_000 },
+    baseLatency: { p50Ms: 2, p99Ms: 8 },
+    baselineAvailability: 0.9995,
+    stateful: false,
+    durable: false,
+    managed: false,
+    optionalOnPath: false,
+    clientSide: false,
+    canAddRedundancy: true,
+    caches: false,
+    // Routes each key to its shard, so traffic divides between the shards.
+    routesTraffic: true,
+    costPerInstanceHourUsd: 0.04,
+    failureModes: ["process-crash", "az-loss"],
+    supports: { replicas: false },
+    vendors: [
+      { id: "vitess", label: "Vitess", family: "self-hosted" },
+      { id: "citus", label: "Citus", family: "self-hosted" },
+      { id: "proxysql", label: "ProxySQL", family: "self-hosted" },
+      {
+        id: "app-level",
+        label: "Application-level routing",
+        family: "self-hosted",
+      },
+    ],
+  },
+
+  "nosql-node": {
+    kind: "nosql-node",
+    label: "Wide-column / KV store",
+    // Tuned for a known access pattern, so far more throughput per node than a
+    // relational primary -- at the cost of joins and ad-hoc queries.
+    capacity: { readRps: 10_000, writeRps: 6_000 },
+    baseLatency: { p50Ms: 4, p99Ms: 20 },
+    baselineAvailability: 0.999,
+    stateful: true,
+    durable: true,
+    managed: true,
+    optionalOnPath: false,
+    clientSide: false,
+    canAddRedundancy: true,
+    caches: false,
+    routesTraffic: false,
+    costPerInstanceHourUsd: 0.15, // ~$110/mo
+    failureModes: ["disk-failure", "az-loss", "replication-stall"],
+    supports: {
+      replicas: true,
+      consistencyModes: ["strong", "quorum", "eventual"],
+      encryptionAtRest: true,
+      backups: true,
+    },
+    vendors: [
+      { id: "dynamodb", label: "AWS DynamoDB", family: "aws" },
+      { id: "bigtable", label: "Google Bigtable", family: "gcp" },
+      { id: "cosmos", label: "Azure Cosmos DB", family: "azure" },
+      { id: "cassandra", label: "Apache Cassandra", family: "self-hosted" },
+      { id: "scylla", label: "ScyllaDB", family: "self-hosted" },
+    ],
+  },
+
+  "search-index": {
+    kind: "search-index",
+    label: "Search index",
+    capacity: { readRps: 3_000, writeRps: 800 },
+    baseLatency: { p50Ms: 15, p99Ms: 60 },
+    baselineAvailability: 0.999,
+    stateful: true,
+    durable: true,
+    managed: true,
+    // Derived state: it can be rebuilt from the authoritative store, so losing
+    // it degrades search rather than losing data.
+    optionalOnPath: true,
+    clientSide: false,
+    canAddRedundancy: true,
+    caches: false,
+    routesTraffic: false,
+    costPerInstanceHourUsd: 0.11, // ~$80/mo
+    failureModes: ["az-loss", "disk-failure", "replication-stall"],
+    supports: {
+      replicas: true,
+      consistencyModes: ["eventual"],
+      encryptionAtRest: true,
+    },
+    vendors: [
+      { id: "opensearch", label: "AWS OpenSearch", family: "aws" },
+      { id: "elastic", label: "Elastic Cloud", family: "independent" },
+      { id: "algolia", label: "Algolia", family: "independent" },
+      { id: "typesense", label: "Typesense", family: "self-hosted" },
+      {
+        id: "es-self",
+        label: "Self-managed Elasticsearch",
+        family: "self-hosted",
+      },
+    ],
+  },
+
+  "stream-processor": {
+    kind: "stream-processor",
+    label: "Stream processor",
+    capacity: { readRps: 5_000, writeRps: 5_000 },
+    baseLatency: { p50Ms: 30, p99Ms: 150 },
+    baselineAvailability: 0.99,
+    stateful: true,
+    durable: false,
+    managed: false,
+    optionalOnPath: false,
+    clientSide: false,
+    canAddRedundancy: true,
+    caches: false,
+    routesTraffic: false,
+    costPerInstanceHourUsd: 0.09,
+    failureModes: ["process-crash", "az-loss"],
+    supports: { replicas: false, autoscale: true },
+    vendors: [
+      { id: "flink", label: "Apache Flink", family: "self-hosted" },
+      { id: "kinesis-analytics", label: "AWS Managed Flink", family: "aws" },
+      { id: "dataflow", label: "Google Dataflow", family: "gcp" },
+      { id: "kstreams", label: "Kafka Streams", family: "self-hosted" },
+    ],
+  },
+
+  "data-warehouse": {
+    kind: "data-warehouse",
+    label: "Analytics warehouse",
+    // Columnar and batch-oriented: enormous scan throughput, poor at serving a
+    // request. Deliberately low rps to make "do not query it from the app" bite.
+    capacity: { readRps: 200, writeRps: 2_000 },
+    baseLatency: { p50Ms: 400, p99Ms: 2_500 },
+    baselineAvailability: 0.999,
+    stateful: true,
+    durable: true,
+    managed: true,
+    optionalOnPath: true,
+    clientSide: false,
+    canAddRedundancy: true,
+    caches: false,
+    routesTraffic: false,
+    costPerInstanceHourUsd: 0.2, // ~$146/mo
+    failureModes: ["region-loss"],
+    supports: { replicas: false, encryptionAtRest: true },
+    vendors: [
+      { id: "redshift", label: "AWS Redshift", family: "aws" },
+      { id: "bigquery", label: "Google BigQuery", family: "gcp" },
+      { id: "snowflake", label: "Snowflake", family: "independent" },
+      { id: "databricks", label: "Databricks", family: "independent" },
+      { id: "clickhouse", label: "ClickHouse", family: "self-hosted" },
+    ],
   },
 
   "web-client": {

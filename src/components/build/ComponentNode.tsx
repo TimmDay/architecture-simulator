@@ -3,6 +3,13 @@
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react"
 import {
   Boxes,
+  Cpu,
+  GitBranch,
+  Radio,
+  Search,
+  Table2,
+  Warehouse,
+  Waves,
   Cog,
   ListOrdered,
   Package,
@@ -34,8 +41,15 @@ const ICONS: Partial<Record<ComponentKind, typeof Server>> = {
   "web-client": MonitorSmartphone,
   queue: ListOrdered,
   worker: Cog,
+  "gpu-worker": Cpu,
   "object-store": Package,
   "third-party-api": Plug,
+  "log-stream": Radio,
+  "shard-router": GitBranch,
+  "nosql-node": Table2,
+  "search-index": Search,
+  "stream-processor": Waves,
+  "data-warehouse": Warehouse,
 }
 
 export type ComponentNodeData = {

@@ -7,6 +7,11 @@ import { dataAndCostCards } from "./data-and-cost"
 import { frontendAndApiCards } from "./frontend-and-api"
 import { observabilityCards } from "./observability"
 import { vendorCards } from "./vendors"
+import { transactionCards } from "./transactions"
+import { distributedCards } from "./distributed"
+import { kafkaCards } from "./kafka"
+import { productionCards } from "./production"
+import { gapCards } from "./gaps"
 
 /**
  * The deck.
@@ -25,6 +30,11 @@ export const ALL_CARDS: Card[] = [
   ...frontendAndApiCards,
   ...observabilityCards,
   ...vendorCards,
+  ...transactionCards,
+  ...distributedCards,
+  ...kafkaCards,
+  ...productionCards,
+  ...gapCards,
 ]
 
 const seen = new Set<string>()
