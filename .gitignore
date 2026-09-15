@@ -44,3 +44,7 @@ yarn-error.log*
 
 # production build output, kept separate so it cannot clobber a running dev server
 /.next-build/
+
+# smoke-test screenshots, rewritten on every run
+/.smoke/
+build-results.png

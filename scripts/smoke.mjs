@@ -12,7 +12,12 @@
  */
 import { chromium } from "playwright"
 
-const SHOT = process.env.SMOKE_OUT ?? "./"
+/*
+ * Screenshots default into a gitignored directory rather than the repo root.
+ * They are rewritten on every run, so at the root they left the tree dirty and
+ * a 187KB binary kept turning up in unrelated diffs. Override with SMOKE_OUT.
+ */
+const SHOT = process.env.SMOKE_OUT ?? ".smoke/"
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 } })
 const errs = []
