@@ -10,3 +10,6 @@
  * own and stays in your browser" -- untrue on the page that makes it.
  */
 export const DONATE_URL: string | null = "https://ko-fi.com/timmday"
+
+/** The public repository, for the "fork it" offer on the home page. */
+export const REPO_URL = "https://github.com/TimmDay/architecture-simulator"

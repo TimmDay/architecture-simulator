@@ -76,3 +76,7 @@ the trade being made deliberately.
 
 Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind v4 · `@xyflow/react` ·
 vitest · pnpm. Deploys to Vercel.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE). Fork it and make it your own.
