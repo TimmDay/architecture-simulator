@@ -14,9 +14,14 @@ export default function HomePage() {
         Made redundant and need to study for interviews? I'm with ya.
       </p>
       <p className="text-fog mt-3 max-w-2xl text-[15px] leading-relaxed">
-                Drill recalls the ideas; Build makes
-        you apply them under load, faults and a budget. Fail a rule in Build and
-        the matching cards land in tomorrow&apos;s Drill queue.
+        Drill recalls the ideas; Build makes you apply them under load, faults
+        and a budget. Fail a rule in Build and the matching cards land in
+        tomorrow&apos;s Drill queue.
+      </p>
+      <p className="text-fog mt-3 max-w-2xl text-[15px] leading-relaxed">
+        Content is free and zipped locally. Your data is your own and stays in
+        your browser. You can buy me a coffee if you want to affirm my choice to
+        say f u to ads (noting that yes, I am redundant).
       </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
@@ -27,7 +32,8 @@ export default function HomePage() {
           <Layers className="text-accent" size={22} />
           <h2 className="text-chalk mt-4 text-lg font-medium">Drill</h2>
           <p className="text-fog mt-1.5 text-sm leading-relaxed">
-            Multiple choice or discuss. Learn the vocab to defend your architecture choices.
+            Multiple choice or discuss. Learn the vocab to defend your
+            architecture choices.
           </p>
           <p className="text-fog/70 mt-4 text-xs">
             {ALL_CARDS.length} cards · {ALL_TOPIC_IDS.length} topics
