@@ -58,6 +58,7 @@ export const observabilityCards: Card[] = [
     prompt: "What are the RED and USE methods, and when do you reach for each?",
     answer:
       "RED covers request-driven services: Rate (requests/sec), Errors (failures/sec), Duration (latency distribution) -- the user's view, so it is what you alert on. USE covers resources: Utilization, Saturation, Errors, applied per resource such as CPU, disk, or a connection pool -- the operator's view, so it is what you consult to find out why. RED tells you something is wrong; USE tells you where.",
+    expands: "Rate, Errors, Duration · Utilisation, Saturation, Errors",
     emFraming:
       "Having both, and knowing which is which, is what stops an incident from becoming forty minutes of people guessing at dashboards. RED is the pager, USE is the investigation.",
     topicIds: [

@@ -33,6 +33,7 @@ export const dataAndCostCards: Card[] = [
     prompt: "Define RPO and RTO, and say what each one costs to reduce.",
     answer:
       "RPO (recovery point objective) is how much data you can afford to lose, measured in time -- driven by replication mode and backup frequency. RTO (recovery time objective) is how long you can afford to be down -- driven by failover automation and restore speed. Lowering RPO costs write latency (synchronous replication) or storage (more frequent backups). Lowering RTO costs standby infrastructure you pay for and rarely use.",
+    expands: "Recovery Point Objective, Recovery Time Objective",
     emFraming:
       "These are business decisions wearing technical clothes. Get the product owner to say the numbers out loud before you design; 'zero' is not an answer, it is a budget request.",
     topicIds: ["replication.rpo-rto", "replication.failover"],

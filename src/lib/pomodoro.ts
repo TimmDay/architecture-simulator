@@ -25,18 +25,22 @@ export type TimerState = {
   endsAt: number | null
   /** Milliseconds left at the moment of pausing. Null whenever running. */
   pausedMs: number | null
-  /** Focus sessions finished today, to match a two-a-day routine. */
-  completedToday: number
-  /** Which day `completedToday` counts, so it resets on its own. */
-  countedOn: string
+  /**
+   * Focus sessions finished, keyed by day.
+   *
+   * A running total plus "which day it counts for" needed an explicit rollover
+   * step, and a goal spanning a fortnight cannot be built on a number that
+   * forgets yesterday. A map keyed by date rolls over on its own, because the
+   * key for a new day simply is not there yet.
+   */
+  history: Record<string, number>
 }
 
 export const IDLE: TimerState = {
   phase: "idle",
   endsAt: null,
   pausedMs: null,
-  completedToday: 0,
-  countedOn: "",
+  history: {},
 }
 
 export function dayKey(now = new Date()): string {
@@ -50,6 +54,15 @@ export function isActive(state: TimerState): boolean {
 
 export function isPaused(state: TimerState): boolean {
   return isActive(state) && state.pausedMs !== null
+}
+
+/** Focus sessions finished on a given day. */
+export function completedOn(state: TimerState, key: string): number {
+  return state.history[key] ?? 0
+}
+
+export function completedToday(state: TimerState, now = Date.now()): number {
+  return completedOn(state, dayKey(new Date(now)))
 }
 
 export function start(
@@ -114,27 +127,21 @@ export function formatRemaining(state: TimerState, now = Date.now()): string {
  * than useless in a tool whose whole job is honest self-assessment.
  */
 export function tick(state: TimerState, now = Date.now()): TimerState {
-  const today = dayKey(new Date(now))
-  const rolled =
-    state.countedOn === today
-      ? state
-      : { ...state, completedToday: 0, countedOn: today }
+  if (state.phase === "idle" || state.phase === "done") return state
+  if (state.pausedMs !== null) return state
+  if (remainingMs(state, now) > 0) return state
 
-  if (rolled.phase === "idle" || rolled.phase === "done") return rolled
-  if (rolled.pausedMs !== null) return rolled
-  if (remainingMs(rolled, now) > 0) return rolled
-
-  if (rolled.phase === "focus") {
+  if (state.phase === "focus") {
+    const today = dayKey(new Date(now))
     return {
-      ...rolled,
+      ...state,
       phase: "done",
       endsAt: null,
       pausedMs: null,
-      completedToday: rolled.completedToday + 1,
-      countedOn: today,
+      history: { ...state.history, [today]: completedOn(state, today) + 1 },
     }
   }
-  return { ...rolled, phase: "idle", endsAt: null, pausedMs: null }
+  return { ...state, phase: "idle", endsAt: null, pausedMs: null }
 }
 
 /** What the tab should say, so a backgrounded timer is still visible. */

@@ -188,8 +188,19 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
                 : "Not quite — this one comes back tomorrow."}
             </p>
             <p className="text-fog mt-2 text-[12px] leading-relaxed">
+              {/* Knowing what an SLO *is* while not knowing it is a Service
+                  Level Objective is a gap you find out loud, in the one room
+                  where finding it is expensive. */}
+              {card.expands && (
+                <span className="text-chalk/80">{card.expands} — </span>
+              )}
               {card.answer}
             </p>
+            {card.note && (
+              <p className="text-fog/70 mt-1.5 text-[11px] leading-relaxed">
+                {card.note}
+              </p>
+            )}
             <div className="mt-4 flex gap-2">
               <button
                 onClick={() => advance(false)}
