@@ -13,10 +13,12 @@ import {
 } from "~/drill/progress"
 import type { CardState } from "~/drill/types"
 import { getProgressStore } from "~/storage"
+import { Disclosure } from "~/components/Disclosure"
+import { DomainStrengths } from "./DomainStrengths"
 import type { ScenarioAttempt } from "~/storage/types"
 import { scenarioById } from "~/sim/scenarios"
 import { recommend, scenarioProgress } from "~/sim/study-plan"
-import { DOMAINS, TOPICS, type DomainId } from "~/topics"
+import { TOPICS } from "~/topics"
 
 export function ProgressDashboard() {
   const [states, setStates] = useState<Map<string, CardState> | null>(null)
@@ -174,24 +176,30 @@ export function ProgressDashboard() {
                 the queue as one you have never missed. This is where study time
                 actually pays.
               </p>
+              {/* Five is a study session. A list of twelve is a reading task,
+                  and gets skipped as one. */}
               <div className="mt-3 space-y-2">
-                {weak.map(({ card, reason }) => (
-                  <div
-                    key={card.id}
-                    className="border-line bg-panel rounded-lg border px-3.5 py-2.5"
-                  >
-                    <div className="text-chalk text-[13px] leading-snug">
-                      {card.speed[0]?.question ?? card.prompt}
-                    </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-warn text-[11px]">{reason}</span>
-                      <span className="text-fog/50 text-[11px]">
-                        · {TOPICS[card.topicIds[0]!]?.label}
-                      </span>
-                    </div>
-                  </div>
+                {weak.slice(0, 5).map((w) => (
+                  <WeakCard key={w.card.id} weak={w} />
                 ))}
               </div>
+              {weak.length > 5 && (
+                <div className="mt-2">
+                  <Disclosure
+                    title={
+                      <span className="text-fog text-[12px] font-normal">
+                        {weak.length - 5} more
+                      </span>
+                    }
+                  >
+                    <div className="space-y-2">
+                      {weak.slice(5).map((w) => (
+                        <WeakCard key={w.card.id} weak={w} />
+                      ))}
+                    </div>
+                  </Disclosure>
+                </div>
+              )}
             </section>
           )}
 
@@ -263,7 +271,7 @@ export function ProgressDashboard() {
             </div>
           </section>
 
-          <StrengthGrid strengths={strengths} />
+          <DomainStrengths strengths={strengths} />
 
           <section className="mt-10">
             <h2 className="text-chalk flex items-center gap-2 text-[15px] font-medium">
@@ -299,33 +307,52 @@ export function ProgressDashboard() {
 
           {attempts.length > 0 && (
             <section className="mt-10">
-              <h2 className="text-fog text-[13px] font-medium">
-                Recent attempts
-              </h2>
-              <div className="mt-3 space-y-1.5">
-                {attempts.slice(0, 10).map((a) => (
-                  <div
-                    key={a.id}
-                    className="border-line bg-panel flex items-center gap-3 rounded-lg border px-3 py-2 text-[12px]"
-                  >
-                    <span
-                      className={`w-5 font-semibold ${a.passed ? "text-pass" : "text-fail"}`}
+              <Disclosure
+                title="Recent attempts"
+                meta={`${attempts.length} logged`}
+              >
+                <div className="space-y-1.5">
+                  {attempts.slice(0, 10).map((a) => (
+                    <div
+                      key={a.id}
+                      className="border-line bg-panel flex items-center gap-3 rounded-lg border px-3 py-2 text-[12px]"
                     >
-                      {a.grade}
-                    </span>
-                    <span className="text-chalk min-w-0 flex-1 truncate">
-                      {scenarioById(a.scenarioId)?.title ?? a.scenarioId}
-                    </span>
-                    <span className="text-fog/60 shrink-0">
-                      {new Date(a.at).toLocaleDateString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                      <span
+                        className={`w-5 font-semibold ${a.passed ? "text-pass" : "text-fail"}`}
+                      >
+                        {a.grade}
+                      </span>
+                      <span className="text-chalk min-w-0 flex-1 truncate">
+                        {scenarioById(a.scenarioId)?.title ?? a.scenarioId}
+                      </span>
+                      <span className="text-fog/60 shrink-0">
+                        {new Date(a.at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </Disclosure>
             </section>
           )}
         </>
       )}
+    </div>
+  )
+}
+
+function WeakCard({ weak }: { weak: ReturnType<typeof struggling>[number] }) {
+  const { card, reason } = weak
+  return (
+    <div className="border-line bg-panel rounded-lg border px-3.5 py-2.5">
+      <div className="text-chalk text-[13px] leading-snug">
+        {card.speed[0]?.question ?? card.prompt}
+      </div>
+      <div className="mt-1 flex items-center gap-2">
+        <span className="text-warn text-[11px]">{reason}</span>
+        <span className="text-fog/50 text-[11px]">
+          · {TOPICS[card.topicIds[0]!]?.label}
+        </span>
+      </div>
     </div>
   )
 }
@@ -345,62 +372,5 @@ function Stat({
       <div className="text-chalk mt-0.5 text-xl font-semibold">{value}</div>
       {sub && <div className="text-fog/60 text-[10px]">{sub}</div>}
     </div>
-  )
-}
-
-function StrengthGrid({
-  strengths,
-}: {
-  strengths: ReturnType<typeof topicStrengths>
-}) {
-  const domains = Object.keys(DOMAINS) as DomainId[]
-  return (
-    <section className="mt-10">
-      <h2 className="text-chalk text-[15px] font-medium">Every topic</h2>
-      <p className="text-fog mt-1 text-[12px]">
-        Strength combines how long a card has held with how hard it has been — a
-        card relearned five times should not look like one never forgotten.
-      </p>
-      <div className="mt-3 space-y-4">
-        {domains.map((d) => {
-          const inDomain = strengths
-            .filter((t) => t.domain === d)
-            .sort((a, b) => a.strength - b.strength)
-          if (inDomain.length === 0) return null
-          return (
-            <div key={d}>
-              <h3 className="text-fog mb-1.5 text-[11px] font-medium tracking-wide uppercase">
-                {DOMAINS[d]}
-              </h3>
-              <div className="flex flex-wrap gap-1">
-                {inDomain.map((t) => (
-                  <span
-                    key={t.topic}
-                    title={`${TOPICS[t.topic].label} — ${Math.round(t.strength * 100)}% (${t.seen}/${t.cards} cards seen)`}
-                    className="border-line rounded px-1.5 py-0.5 text-[10px]"
-                    style={{
-                      borderColor:
-                        t.strength > 0.66
-                          ? "rgb(74 222 128 / 0.5)"
-                          : t.strength > 0.25
-                            ? "rgb(251 191 36 / 0.5)"
-                            : undefined,
-                      color:
-                        t.strength > 0.66
-                          ? "rgb(74 222 128)"
-                          : t.strength > 0.25
-                            ? "rgb(251 191 36)"
-                            : undefined,
-                    }}
-                  >
-                    {TOPICS[t.topic].label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </section>
   )
 }

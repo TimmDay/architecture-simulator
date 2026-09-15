@@ -21,8 +21,8 @@ export default function HomePage() {
       </p>
       <p className="text-fog mt-3 max-w-2xl text-[15px] leading-relaxed">
         Content is free and local. Your data is your own and stays in your
-        browser — no cookies, no account, nothing that identifies you. I count
-        page views so I know whether anyone is using this. You can{" "}
+        browser. No cookies, no account, nothing identifying. I do count page
+        views so I know whether anyone is using this. You can{" "}
         {DONATE_URL ? (
           <a
             href={DONATE_URL}
@@ -45,7 +45,8 @@ export default function HomePage() {
         >
           on GitHub
         </a>{" "}
-        — fork it and make it your own.
+        feel free to fork it for your own study purposes. Or just use it as is.
+        I might review a github issue if you have one.
       </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">

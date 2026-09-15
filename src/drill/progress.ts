@@ -1,7 +1,13 @@
 import type { Card, CardState } from "./types"
 import { cardWeight } from "./queue"
 import { isDue } from "./sm2"
-import { topicWeight, TOPICS, type DomainId, type TopicId } from "~/topics"
+import {
+  topicWeight,
+  DOMAINS,
+  TOPICS,
+  type DomainId,
+  type TopicId,
+} from "~/topics"
 
 /**
  * Reading a deck's history back.
@@ -100,6 +106,63 @@ export function struggling(
     out.push({ card, state: s, score, reason })
   }
   return out.sort((a, b) => b.score - a.score).slice(0, limit)
+}
+
+/**
+ * Where a topic sits. The same three bands the dashboard colours by, named
+ * once so the roll-up and the chips cannot drift apart.
+ */
+export const STRONG = 0.66
+export const MEDIUM = 0.25
+
+export type Band = "strong" | "medium" | "weak"
+
+export function band(strength: number): Band {
+  return strength > STRONG ? "strong" : strength > MEDIUM ? "medium" : "weak"
+}
+
+export type DomainStrength = {
+  domain: DomainId
+  label: string
+  topics: TopicStrength[]
+  strong: number
+  medium: number
+  weak: number
+  /** Mean strength across the domain's topics, for ordering. */
+  strength: number
+}
+
+/**
+ * Topics rolled up to their domain.
+ *
+ * The dashboard used to print all 166 topics as a flat wall of chips, which is
+ * unreadable precisely when you most need it -- there is no answer to "where am
+ * I weakest" in a list that long. Domains are the unit a study session is
+ * actually chosen at, so the summary is per domain and the topics live behind
+ * it. Weakest first, because that is the only ordering anyone scans for.
+ */
+export function domainStrengths(strengths: TopicStrength[]): DomainStrength[] {
+  const acc = new Map<DomainId, DomainStrength>()
+  for (const t of strengths) {
+    const row = acc.get(t.domain) ?? {
+      domain: t.domain,
+      label: DOMAINS[t.domain],
+      topics: [],
+      strong: 0,
+      medium: 0,
+      weak: 0,
+      strength: 0,
+    }
+    row.topics.push(t)
+    row[band(t.strength)] += 1
+    acc.set(t.domain, row)
+  }
+  for (const row of acc.values()) {
+    row.strength =
+      row.topics.reduce((n, t) => n + t.strength, 0) / row.topics.length
+    row.topics.sort((a, b) => a.strength - b.strength)
+  }
+  return [...acc.values()].sort((a, b) => a.strength - b.strength)
 }
 
 export type TopicStrength = {

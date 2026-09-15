@@ -180,7 +180,7 @@ export function PomodoroTimer() {
                     : "text-fog hover:text-chalk"
             }`}
           >
-            <Tomato size={15} />
+            <Tomato size={15} filled={active} dim={paused} />
             {active && (
               <span className="flex items-center gap-1 font-mono text-[12px] tabular-nums">
                 {paused && <Pause size={10} fill="currentColor" />}
@@ -232,8 +232,27 @@ export function PomodoroTimer() {
   )
 }
 
-/** lucide has no tomato, and a pomodoro that is not a tomato is just a timer. */
-function Tomato({ size = 16 }: { size?: number }) {
+/**
+ * lucide has no tomato, and a pomodoro that is not a tomato is just a timer.
+ *
+ * It fills in while a session runs, so the state is readable from the icon
+ * alone -- across the room, or in a glance that never reaches the digits. A
+ * muted red rather than a bright one: this sits in a nav above the thing you
+ * are supposed to be concentrating on, and a saturated dot in the corner of
+ * your eye is exactly the kind of pull the timer exists to prevent. Paused
+ * drains most of the colour out again, leaving the shape filled so a pause
+ * still reads as a session in progress rather than as a stopped one.
+ */
+function Tomato({
+  size = 16,
+  filled = false,
+  dim = false,
+}: {
+  size?: number
+  filled?: boolean
+  dim?: boolean
+}) {
+  const body = filled ? (dim ? "#7f4a4a" : "#b4543f") : "none"
   return (
     <svg
       width={size}
@@ -246,7 +265,11 @@ function Tomato({ size = 16 }: { size?: number }) {
       strokeLinejoin="round"
       aria-hidden
     >
-      <path d="M12 7c4.4 0 8 2.9 8 6.5S16.4 21 12 21s-8-3.9-8-7.5S7.6 7 12 7Z" />
+      <path
+        d="M12 7c4.4 0 8 2.9 8 6.5S16.4 21 12 21s-8-3.9-8-7.5S7.6 7 12 7Z"
+        fill={body}
+        className="transition-[fill] duration-300"
+      />
       <path d="M12 7 10 4M12 7l2-3M12 7 8.5 5.5M12 7l3.5-1.5" />
     </svg>
   )
