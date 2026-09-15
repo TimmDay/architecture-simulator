@@ -1,12 +1,22 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import "~/styles/globals.css"
 import { Nav } from "~/components/Nav"
 import { Footer } from "~/components/Footer"
+import { ServiceWorkerRegister } from "~/components/ServiceWorkerRegister"
 import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: "Architecture Simulator",
   description: "Drill system architecture, then defend what you build.",
+  appleWebApp: {
+    capable: true,
+    title: "Architecture Sim",
+    statusBarStyle: "black-translucent",
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: "#0b0e14",
 }
 
 export default function RootLayout({
@@ -20,6 +30,7 @@ export default function RootLayout({
         <Nav />
         <main className="flex min-h-0 flex-1 flex-col">{children}</main>
         <Footer />
+        <ServiceWorkerRegister />
         {/*
           Page views only, and cookieless -- which is what lets the home page
           say "no cookies, no account, nothing that identifies you" and stay
