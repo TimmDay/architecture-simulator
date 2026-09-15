@@ -116,6 +116,7 @@ export const scalingCachingCards: Card[] = [
     prompt: "When does a CDN buy you nothing?",
     answer:
       "When the traffic is mostly dynamic, per-user, and write-heavy. A CDN caches by URL at the edge; if almost every response is personalised or every request mutates state, there is nothing cacheable and you have added a hop and a bill. It earns its place with static assets, public read-heavy content, and requests with high repeat rates across users.",
+    expands: "Content Delivery Network",
     emFraming:
       "Worth checking the actual cacheable fraction before adding one. 'Put a CDN in front of it' is a reflex that solves the viral-blog problem and does nothing at all for an internal CRUD app.",
     topicIds: ["caching.cdn", "caching.edge-caching", "cost.right-sizing"],

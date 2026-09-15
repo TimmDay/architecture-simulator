@@ -45,6 +45,7 @@ export const stylesAndStoresCards: Card[] = [
     prompt: "What are CQRS and event sourcing, and what do they cost?",
     answer:
       "CQRS separates the write model from the read models: commands go to a model shaped for validating and recording changes, and queries are served by projections shaped for reading, updated asynchronously. Event sourcing goes further and makes the sequence of events the source of truth, with current state derived by replaying them — which gives you a perfect audit trail, the ability to rebuild any projection, and temporal queries. The costs are real: projections are eventually consistent so the UI must cope with a write not being visible yet, events are permanent so schema evolution means versioning them forever, and 'what is the current state' stops being a query anyone can write by hand.",
+    expands: "Command Query Responsibility Segregation",
     emFraming:
       "Both are usually adopted for one aggregate with a genuine audit or temporal requirement — a ledger, an order lifecycle — rather than for a whole system. Applying event sourcing everywhere is how teams end up unable to answer simple questions about their own data.",
     topicIds: ["styles.cqrs-es", "consistency.eventual", "transactions.outbox"],
@@ -150,6 +151,8 @@ export const stylesAndStoresCards: Card[] = [
     prompt: "REST, gRPC and GraphQL: what is each actually for?",
     answer:
       "REST is resource-oriented over HTTP with wide tooling, caching that works because GET is standard, and a low barrier for any client — the default for public APIs. gRPC is binary over HTTP/2 with generated clients from a schema, bidirectional streaming, and materially lower latency and payload size — the default for internal service-to-service traffic where both ends are yours and you want a contract enforced at compile time. GraphQL lets the client specify exactly what it needs in one request, which solves over-fetching and the mobile round-trip problem, at the cost of HTTP caching, easy rate limiting, and a server that must defend against expensive nested queries.",
+    expands:
+      "Representational State Transfer · gRPC: Google Remote Procedure Call · GraphQL: Graph Query Language",
     emFraming:
       "The pattern most large systems land on is gRPC internally, REST at the public edge, and GraphQL only where several clients have genuinely different data needs. Choosing GraphQL for a single first-party client usually buys complexity and no benefit.",
     topicIds: [
@@ -398,6 +401,7 @@ export const stylesAndStoresCards: Card[] = [
     prompt: "What does TLS actually protect, and what is mTLS for?",
     answer:
       "TLS gives you confidentiality, integrity and server authentication on the wire: nobody in the middle can read or alter the traffic, and the client has verified it is talking to the server it intended via a certificate chain. It says nothing about who the client is. mTLS adds that — the client presents a certificate too, so both ends are authenticated — which is why it is the usual basis for service-to-service identity inside a zero-trust network, and what a service mesh is largely providing when it terminates and originates TLS for you.",
+    expands: "Transport Layer Security · mTLS: mutual TLS",
     emFraming:
       "Where it goes wrong operationally is certificate expiry, which takes down everything at once and always at the worst moment. Automated rotation is not a nice-to-have; a manual renewal process is an outage with a date on it.",
     topicIds: [

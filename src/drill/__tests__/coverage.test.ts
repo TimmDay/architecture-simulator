@@ -92,4 +92,30 @@ describe("deck coverage", () => {
       expect(count(domain), `${domain} is thin`).toBeGreaterThanOrEqual(6)
     }
   })
+
+  it("spells out every card whose subject is an acronym", () => {
+    // A ratchet. Knowing an SLO is "the reliability target you commit to
+    // internally" while not knowing it stands for Service Level Objective is a
+    // gap you discover out loud, in the one room where discovering it is
+    // expensive. Adding a bare-acronym card without an expansion fails here.
+    const bare = ALL_CARDS.filter((c) => /^[A-Z]{2,6}$/.test(c.prompt.trim()))
+    expect(bare.length).toBeGreaterThan(0)
+    const unexplained = bare.filter((c) => !c.expands)
+    expect(
+      unexplained.map((c) => c.prompt),
+      "acronym cards with nothing spelled out",
+    ).toEqual([])
+  })
+
+  it("does not leak the expansion into the multiple-choice options", () => {
+    // It sits beside the answer, never inside it -- an option carrying the
+    // spelled-out form would give the card away on sight.
+    for (const card of ALL_CARDS.filter((c) => c.expands)) {
+      for (const v of card.speed) {
+        expect([v.correct, ...v.distractors].join(" ")).not.toContain(
+          card.expands,
+        )
+      }
+    }
+  })
 })

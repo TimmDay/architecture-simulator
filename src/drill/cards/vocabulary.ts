@@ -214,6 +214,7 @@ export const vocabularyCards: Card[] = [
     prompt: "SLO",
     answer:
       "The reliability target you commit to internally, measured over a window",
+    expands: "Service Level Objective",
     topicIds: ["reliability.slo-sli-error-budget"],
     tier: 1,
     speed: [
@@ -235,6 +236,7 @@ export const vocabularyCards: Card[] = [
     prompt: "SLI",
     answer:
       "The measurement — for instance the proportion of requests served under 300ms",
+    expands: "Service Level Indicator",
     topicIds: ["reliability.slo-sli-error-budget"],
     tier: 1,
     speed: [
@@ -276,6 +278,7 @@ export const vocabularyCards: Card[] = [
     deck: "vocabulary",
     prompt: "RPO",
     answer: "How much data you can afford to lose, measured in time",
+    expands: "Recovery Point Objective",
     topicIds: ["replication.rpo-rto"],
     tier: 1,
     speed: [
@@ -295,6 +298,7 @@ export const vocabularyCards: Card[] = [
     deck: "vocabulary",
     prompt: "RTO",
     answer: "How long you can afford to be down before recovering",
+    expands: "Recovery Time Objective",
     topicIds: ["replication.rpo-rto"],
     tier: 1,
     speed: [
@@ -514,6 +518,7 @@ export const vocabularyCards: Card[] = [
     prompt: "TTL",
     answer:
       "How long a cached entry stays valid before it must be fetched again",
+    expands: "Time To Live",
     topicIds: ["caching.ttl-and-staleness"],
     tier: 1,
     speed: [
@@ -556,6 +561,7 @@ export const vocabularyCards: Card[] = [
     prompt: "CDN",
     answer:
       "Servers near users that cache content so requests never reach your origin",
+    expands: "Content Delivery Network",
     topicIds: ["caching.cdn"],
     tier: 1,
     speed: [

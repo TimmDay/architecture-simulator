@@ -27,6 +27,16 @@ export type Card = {
   /** The answer you grade yourself against. */
   answer: string
   /**
+   * What the acronym stands for, on a card whose subject is one.
+   *
+   * Shown with the answer, never as part of it. Knowing that an SLO is "the
+   * reliability target you commit to internally" while not knowing it is a
+   * Service Level Objective is a gap you only discover out loud, in the one
+   * room where discovering it is expensive. It stays out of the multiple-choice
+   * options for the same reason the answer does: it would give the card away.
+   */
+  expands?: string
+  /**
    * The trade-off conversation rather than the definition -- what a senior
    * engineering manager is expected to add on top of a correct answer. Shown
    * below the model answer on the flip, never used for grading.

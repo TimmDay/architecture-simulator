@@ -100,6 +100,11 @@ export function DiscussCard({
                 Model answer
               </h3>
               <p className="border-pass/25 bg-pass/5 text-chalk min-h-24 rounded-lg border p-3 text-sm leading-relaxed">
+                {card.expands && (
+                  <span className="text-pass block text-[12px]">
+                    {card.expands}
+                  </span>
+                )}
                 {card.answer}
               </p>
             </div>
