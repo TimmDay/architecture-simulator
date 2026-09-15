@@ -24,7 +24,7 @@ import {
   Zap,
 } from "lucide-react"
 import { CATALOGUE } from "~/sim/catalogue"
-import { AddAfterButton } from "./AddFromNode"
+import { NodeButtons } from "./AddFromNode"
 import { vendorLabel } from "~/sim/simulate"
 import type {
   ComponentKind,
@@ -194,7 +194,7 @@ export function ComponentNode({
           </div>
         )}
         <Handle type="source" position={Position.Right} />
-        <AddAfterButton nodeId={id} />
+        <NodeButtons nodeId={id} canBeTarget={true} />
       </div>
     </div>
   )

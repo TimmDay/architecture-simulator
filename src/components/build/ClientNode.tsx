@@ -2,7 +2,7 @@
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react"
 import { Users } from "lucide-react"
-import { AddAfterButton } from "./AddFromNode"
+import { NodeButtons } from "./AddFromNode"
 
 export type ClientNodeData = { rps: number }
 export type ClientNodeType = Node<ClientNodeData, "client">
@@ -22,7 +22,7 @@ export function ClientNode({ id, data }: NodeProps<ClientNodeType>) {
         {Math.round(data.rps)} rps
       </div>
       <Handle type="source" position={Position.Right} />
-      <AddAfterButton nodeId={id} />
+      <NodeButtons nodeId={id} canBeTarget={false} />
     </div>
   )
 }

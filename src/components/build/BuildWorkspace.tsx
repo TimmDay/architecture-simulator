@@ -22,6 +22,7 @@ import {
   PanelLeftOpen,
   PanelRightOpen,
   Play,
+  Plug,
   Plus,
   RotateCcw,
   ShieldAlert,
@@ -46,7 +47,7 @@ import { getProgressStore } from "~/storage"
 import { ComponentNode, type ComponentNodeType } from "./ComponentNode"
 import { ClientNode, type ClientNodeType } from "./ClientNode"
 import { Palette } from "./Palette"
-import { AddFromNodeContext } from "./AddFromNode"
+import { NodeActionsContext, type NodeActions } from "./AddFromNode"
 import { AddComponentSheet } from "./AddComponentSheet"
 import { ConfigPanel } from "./ConfigPanel"
 import { ResultsPanel } from "./ResultsPanel"
@@ -128,6 +129,8 @@ function Workspace({ scenario }: { scenario: Scenario }) {
    * stays shut while you click a box would make selection look broken.
    */
   const [railOpen, setRailOpen] = useState(false)
+  /** The node a connection is being drawn from, tap-to-tap. */
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null)
   /**
    * Which panel a phone is looking at.
    *
@@ -395,6 +398,25 @@ function Workspace({ scenario }: { scenario: Scenario }) {
     [],
   )
 
+  const nodeActions = useMemo<NodeActions>(
+    () => ({
+      onAdd: openAddAfter,
+      connectingFrom,
+      startConnect: setConnectingFrom,
+      finishConnect: (targetId) => {
+        if (connectingFrom) connectNodes(connectingFrom, targetId)
+        setConnectingFrom(null)
+      },
+      // A plug that would make an edge already there is a plug that does
+      // nothing, and a control that does nothing reads as a broken one.
+      canReceive: (targetId) =>
+        !edges.some(
+          (e) => e.source === connectingFrom && e.target === targetId,
+        ),
+    }),
+    [openAddAfter, connectingFrom, connectNodes, edges],
+  )
+
   /**
    * Drop a component into the middle of whatever you are looking at.
    *
@@ -490,13 +512,15 @@ function Workspace({ scenario }: { scenario: Scenario }) {
   const justPlaced = useRef(false)
 
   useEffect(() => {
-    if (!armedKind) return
+    if (!armedKind && !connectingFrom) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setArmedKind(null)
+      if (e.key !== "Escape") return
+      setArmedKind(null)
+      setConnectingFrom(null)
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [armedKind])
+  }, [armedKind, connectingFrom])
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -966,6 +990,22 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           </div>
         )}
 
+        {connectingFrom && (
+          <div className="border-pass/30 bg-pass/10 flex items-center gap-2 border-b px-4 py-2 text-[12px] sm:hidden">
+            <Plug size={13} className="text-pass shrink-0" />
+            <span className="text-chalk">
+              Tap a red plug to connect{" "}
+              <strong>{labelOf(connectingFrom)}</strong> to it.
+            </span>
+            <button
+              onClick={() => setConnectingFrom(null)}
+              className="text-fog hover:text-chalk ml-auto shrink-0 underline underline-offset-2"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
         {armedKind && (
           <div className="border-accent/30 bg-accent/10 flex items-center gap-2 border-b px-4 py-2 text-[12px]">
             <MousePointerClick size={13} className="text-accent shrink-0" />
@@ -982,7 +1022,7 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           </div>
         )}
 
-        <AddFromNodeContext.Provider value={openAddAfter}>
+        <NodeActionsContext.Provider value={nodeActions}>
           <div
             ref={wrapper}
             className={`relative min-h-0 flex-1 ${armedKind ? "cursor-crosshair" : ""}`}
@@ -999,6 +1039,12 @@ function Workspace({ scenario }: { scenario: Scenario }) {
                 e.dataTransfer.dropEffect = "move"
               }}
               onNodeClick={(event, n) => {
+                // The red plug stops propagation, so a tap that reaches the
+                // node body is a tap somewhere else: abandon.
+                if (connectingFrom) {
+                  setConnectingFrom(null)
+                  return
+                }
                 if (armedKind) {
                   placeComponent(armedKind, event.clientX, event.clientY)
                   setArmedKind(null)
@@ -1012,6 +1058,10 @@ function Workspace({ scenario }: { scenario: Scenario }) {
                 setSelectedId(null)
               }}
               onPaneClick={(event) => {
+                if (connectingFrom) {
+                  setConnectingFrom(null)
+                  return
+                }
                 if (armedKind) {
                   placeComponent(armedKind, event.clientX, event.clientY)
                   setArmedKind(null)
@@ -1048,7 +1098,7 @@ function Workspace({ scenario }: { scenario: Scenario }) {
               <Plus size={22} />
             </button>
           </div>
-        </AddFromNodeContext.Provider>
+        </NodeActionsContext.Provider>
       </div>
 
       {adding && (
