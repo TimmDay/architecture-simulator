@@ -43,6 +43,7 @@
   ],
   "exclude": [
     "node_modules",
-    "docs"
+    "docs",
+    ".next-build"
   ]
 }

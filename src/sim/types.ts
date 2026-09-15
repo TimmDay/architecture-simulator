@@ -85,6 +85,15 @@ export type ComponentSpec = {
   kind: ComponentKind
   label: string
   /**
+   * The short name of the thing, used to prefix a component's own label on the
+   * canvas -- "Queue: Render jobs" rather than "Render jobs".
+   *
+   * Separate from `label` because several catalogue labels carry qualifiers
+   * that are useful in a palette and clumsy as a prefix: "GPU / render worker"
+   * and "Event log (Kafka)" read badly in front of a name.
+   */
+  shortName: string
+  /**
    * Per instance. Reads and writes are separate because they differ by an order
    * of magnitude on stateful components, and "add a read replica" is only
    * gradable if the engine knows a replica absorbs reads and not writes. For

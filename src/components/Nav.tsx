@@ -3,12 +3,13 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { PomodoroTimer } from "./PomodoroTimer"
-import { Boxes, Layers, Home } from "lucide-react"
+import { Boxes, ChartNoAxesColumn, Home, Layers } from "lucide-react"
 
 const LINKS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/drill", label: "Drill", icon: Layers },
   { href: "/build", label: "Build", icon: Boxes },
+  { href: "/progress", label: "Progress", icon: ChartNoAxesColumn },
 ]
 
 export function Nav() {

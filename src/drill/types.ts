@@ -87,6 +87,16 @@ export type CardState = {
    * which scenario earned it, so the review screen can say why you are seeing it.
    */
   enqueuedBy?: { scenarioId: string; ruleId: string; at: string }
+  /**
+   * Speed mode history, kept separately from the SM-2 fields on purpose.
+   *
+   * Recognition and recall are different skills and mixing them would make both
+   * numbers lie: a card you can pick out of four but could not explain should
+   * look strong in one column and weak in the other, not averaged into
+   * something that describes neither.
+   */
+  speedSeen?: number
+  speedRight?: number
 }
 
 export type ReviewOutcome = {

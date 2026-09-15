@@ -145,9 +145,16 @@ export function recordSpeedAnswer(
   correct: boolean,
   now = new Date(),
 ): CardState {
-  if (correct) return state
-  return {
+  // History is recorded either way -- you cannot see where recognition is weak
+  // if only the failures are counted.
+  const counted: CardState = {
     ...state,
+    speedSeen: (state.speedSeen ?? 0) + 1,
+    speedRight: (state.speedRight ?? 0) + (correct ? 1 : 0),
+  }
+  if (correct) return counted
+  return {
+    ...counted,
     dueAt: now.toISOString(),
     intervalDays: Math.min(state.intervalDays, 1),
   }

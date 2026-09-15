@@ -19,6 +19,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "load-balancer": {
     kind: "load-balancer",
     label: "Load balancer (L7)",
+    shortName: "Load balancer",
     capacity: { readRps: 10_000, writeRps: 10_000 },
     baseLatency: { p50Ms: 2, p99Ms: 8 },
     baselineAvailability: 0.9995,
@@ -45,6 +46,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "app-server": {
     kind: "app-server",
     label: "App server",
+    shortName: "App server",
     capacity: { readRps: 200, writeRps: 200 },
     baseLatency: { p50Ms: 25, p99Ms: 80 },
     baselineAvailability: 0.99,
@@ -71,6 +73,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "sql-primary": {
     kind: "sql-primary",
     label: "SQL primary",
+    shortName: "SQL primary",
     // Writes cost ~5x a read: durability, WAL, index maintenance.
     capacity: { readRps: 2_000, writeRps: 400 },
     baseLatency: { p50Ms: 5, p99Ms: 25 },
@@ -104,6 +107,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "sql-replica": {
     kind: "sql-replica",
     label: "SQL read replica",
+    shortName: "Read replica",
     // writeRps 0 is the point: routing writes here is a mistake the engine can see.
     capacity: { readRps: 2_000, writeRps: 0 },
     baseLatency: { p50Ms: 5, p99Ms: 25 },
@@ -138,6 +142,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   cache: {
     kind: "cache",
     label: "In-memory cache",
+    shortName: "Cache",
     capacity: { readRps: 50_000, writeRps: 50_000 },
     baseLatency: { p50Ms: 1, p99Ms: 3 },
     baselineAvailability: 0.995,
@@ -168,6 +173,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   cdn: {
     kind: "cdn",
     label: "CDN",
+    shortName: "CDN",
     // Writes are proxied straight through, not cached. A real CDN passes a POST
     // to the origin without complaint, so refusing them here would invent a
     // mistake that does not exist.
@@ -197,6 +203,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "api-gateway": {
     kind: "api-gateway",
     label: "API gateway",
+    shortName: "API gateway",
     capacity: { readRps: 5_000, writeRps: 5_000 },
     baseLatency: { p50Ms: 4, p99Ms: 15 },
     baselineAvailability: 0.9995,
@@ -222,6 +229,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   queue: {
     kind: "queue",
     label: "Queue",
+    shortName: "Queue",
     capacity: { readRps: 10_000, writeRps: 10_000 },
     baseLatency: { p50Ms: 5, p99Ms: 20 },
     baselineAvailability: 0.9999,
@@ -249,6 +257,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   worker: {
     kind: "worker",
     label: "Worker",
+    shortName: "Worker",
     // Background compute -- image processing, OCR, thumbnailing. Far more
     // expensive per item than serving a web request, which is the whole reason
     // it belongs off the request path.
@@ -277,6 +286,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "gpu-worker": {
     kind: "gpu-worker",
     label: "GPU / render worker",
+    shortName: "GPU worker",
     // Rendering a video or running a model is seconds of work, not
     // milliseconds. One instance finishing roughly one job a second is
     // generous; the point is that capacity here is bought by the job, and the
@@ -307,6 +317,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "object-store": {
     kind: "object-store",
     label: "Object store",
+    shortName: "Object store",
     capacity: { readRps: 5_000, writeRps: 1_000 },
     baseLatency: { p50Ms: 25, p99Ms: 90 },
     baselineAvailability: 0.9999,
@@ -333,6 +344,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "third-party-api": {
     kind: "third-party-api",
     label: "Third-party API",
+    shortName: "Third party",
     // Someone else's system. You cannot add instances, you cannot tune it, and
     // its availability is a ceiling on yours wherever it sits on the synchronous
     // path. The latency is theirs too -- note the p99.
@@ -361,6 +373,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "log-stream": {
     kind: "log-stream",
     label: "Event log (Kafka)",
+    shortName: "Event log",
     // An ordered, retained log rather than a queue: reading does not consume,
     // so several independent consumer groups can each read all of it.
     capacity: { readRps: 50_000, writeRps: 50_000 },
@@ -391,6 +404,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "shard-router": {
     kind: "shard-router",
     label: "Shard router",
+    shortName: "Shard router",
     capacity: { readRps: 20_000, writeRps: 20_000 },
     baseLatency: { p50Ms: 2, p99Ms: 8 },
     baselineAvailability: 0.9995,
@@ -421,6 +435,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "nosql-node": {
     kind: "nosql-node",
     label: "Wide-column / KV store",
+    shortName: "KV store",
     // Tuned for a known access pattern, so far more throughput per node than a
     // relational primary -- at the cost of joins and ad-hoc queries.
     capacity: { readRps: 10_000, writeRps: 6_000 },
@@ -454,6 +469,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "search-index": {
     kind: "search-index",
     label: "Search index",
+    shortName: "Search index",
     capacity: { readRps: 3_000, writeRps: 800 },
     baseLatency: { p50Ms: 15, p99Ms: 60 },
     baselineAvailability: 0.999,
@@ -490,6 +506,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "stream-processor": {
     kind: "stream-processor",
     label: "Stream processor",
+    shortName: "Stream processor",
     capacity: { readRps: 5_000, writeRps: 5_000 },
     baseLatency: { p50Ms: 30, p99Ms: 150 },
     baselineAvailability: 0.99,
@@ -515,6 +532,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "data-warehouse": {
     kind: "data-warehouse",
     label: "Analytics warehouse",
+    shortName: "Warehouse",
     // Columnar and batch-oriented: enormous scan throughput, poor at serving a
     // request. Deliberately low rps to make "do not query it from the app" bite.
     capacity: { readRps: 200, writeRps: 2_000 },
@@ -543,6 +561,7 @@ export const CATALOGUE: Partial<Record<ComponentKind, ComponentSpec>> = {
   "web-client": {
     kind: "web-client",
     label: "Web client",
+    shortName: "Client",
     // Runs in the user's browser, so there is no server capacity to exhaust.
     capacity: {
       readRps: Number.MAX_SAFE_INTEGER,
