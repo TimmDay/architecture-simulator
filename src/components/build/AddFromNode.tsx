@@ -32,9 +32,14 @@ export const NodeActionsContext = createContext<NodeActions | null>(null)
  * interaction.
  *
  * Connecting is two taps rather than a drag: a green plug on the source, then
- * a red plug on every node that could receive it. Nothing is dragged, both
- * targets are thumb-sized, and the direction is stated by which plug you
- * pressed first rather than by which way you happened to move.
+ * a red plug on every node that could receive it. Nothing is dragged, and the
+ * direction is stated by which plug you pressed first rather than by which way
+ * you happened to move.
+ *
+ * The plugs are drawn at half the size of the "+" so they read as a secondary
+ * action and do not crowd a node, but each keeps a transparent hit area around
+ * it roughly the size of a fingertip. A 14px dot is legible; a 14px target is
+ * not, and the two do not have to be the same rectangle.
  */
 export function NodeButtons({
   nodeId,
@@ -67,9 +72,9 @@ export function NodeButtons({
           finishConnect(nodeId)
         }}
         aria-label="Connect to this component"
-        className="border-fail bg-fail/25 text-fail animate-pulse absolute -bottom-3 -left-3 z-10 flex h-7 w-7 items-center justify-center rounded-full border sm:hidden"
+        className="border-fail bg-fail/25 text-fail absolute -bottom-1.5 -left-1.5 z-10 flex h-3.5 w-3.5 animate-pulse items-center justify-center rounded-full border before:absolute before:-inset-2.5 before:content-[''] sm:hidden"
       >
-        <Plug size={13} />
+        <Plug size={8} />
       </button>
     )
   }
@@ -94,9 +99,9 @@ export function NodeButtons({
           startConnect(nodeId)
         }}
         aria-label="Connect this component to another"
-        className="border-pass/70 bg-panel text-pass hover:bg-pass/20 absolute -right-3 -bottom-3 z-10 flex h-7 w-7 items-center justify-center rounded-full border transition-colors sm:hidden"
+        className="border-pass/70 bg-panel text-pass hover:bg-pass/20 absolute -right-1.5 -bottom-1.5 z-10 flex h-3.5 w-3.5 items-center justify-center rounded-full border transition-colors before:absolute before:-inset-2.5 before:content-[''] sm:hidden"
       >
-        <Plug size={13} />
+        <Plug size={8} />
       </button>
     </>
   )
