@@ -22,6 +22,8 @@ import {
   PanelLeftOpen,
   PanelRightOpen,
   Play,
+  Plug,
+  Plus,
   RotateCcw,
   ShieldAlert,
   Undo2,
@@ -45,6 +47,8 @@ import { getProgressStore } from "~/storage"
 import { ComponentNode, type ComponentNodeType } from "./ComponentNode"
 import { ClientNode, type ClientNodeType } from "./ClientNode"
 import { Palette } from "./Palette"
+import { NodeActionsContext, type NodeActions } from "./AddFromNode"
+import { AddComponentSheet } from "./AddComponentSheet"
 import { ConfigPanel } from "./ConfigPanel"
 import { ResultsPanel } from "./ResultsPanel"
 import { EdgePanel, type EdgeConfig } from "./EdgePanel"
@@ -53,6 +57,31 @@ const nodeTypes = { component: ComponentNode, client: ClientNode }
 
 let seq = 0
 const nextId = (kind: string) => `${kind}-${++seq}`
+
+/**
+ * The nearest free spot at or below `base`.
+ *
+ * Used wherever the app picks the position rather than the player: a component
+ * dropped exactly where you tapped is fine, but two added from a button both
+ * land on the same pixel and the upper one silently swallows every tap meant
+ * for the lower.
+ */
+function freeSlot(
+  taken: { position: { x: number; y: number } }[],
+  base: { x: number; y: number },
+): { x: number; y: number } {
+  let position = base
+  while (
+    taken.some(
+      (n) =>
+        Math.abs(n.position.x - position.x) < 200 &&
+        Math.abs(n.position.y - position.y) < 120,
+    )
+  ) {
+    position = { x: position.x, y: position.y + 150 }
+  }
+  return position
+}
 
 /** Default edge semantics by target kind, so the common case needs no fiddling. */
 function defaultCarries(
@@ -100,6 +129,8 @@ function Workspace({ scenario }: { scenario: Scenario }) {
    * stays shut while you click a box would make selection look broken.
    */
   const [railOpen, setRailOpen] = useState(false)
+  /** The node a connection is being drawn from, tap-to-tap. */
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null)
   /**
    * Which panel a phone is looking at.
    *
@@ -265,23 +296,13 @@ function Workspace({ scenario }: { scenario: Scenario }) {
     [setEdges, nodes],
   )
 
-  /**
-   * Put a component on the canvas at a screen point.
-   *
-   * Shared by dragging and tapping. HTML5 drag-and-drop never fires on a touch
-   * device -- `touchstart` arrives, `dragstart` does not -- so on a phone the
-   * palette was decorative and nothing could be placed at all. Arming a
-   * component with one tap and dropping it with a second is the same gesture
-   * without the parts that need a mouse.
-   */
-  const placeComponent = useCallback(
-    (kind: ComponentKind, screenX: number, screenY: number) => {
+  /** A fresh component of this kind, with the defaults a new one deserves. */
+  const makeComponent = useCallback(
+    (kind: ComponentKind): PlacedComponent | null => {
       const spec = CATALOGUE[kind]
-      if (!spec) return
-      const position = screenToFlowPosition({ x: screenX, y: screenY })
-      const id = nextId(kind)
-      const component: PlacedComponent = {
-        id,
+      if (!spec) return null
+      return {
+        id: nextId(kind),
         kind,
         label: spec.label,
         instances: 1,
@@ -302,22 +323,186 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           ...(kind === "cache" ? { ttlSeconds: 60 } : {}),
         },
       }
+    },
+    [],
+  )
+
+  /**
+   * Put a component on the canvas at a screen point.
+   *
+   * Shared by dragging and tapping. HTML5 drag-and-drop never fires on a touch
+   * device -- `touchstart` arrives, `dragstart` does not -- so on a phone the
+   * palette was decorative and nothing could be placed at all. Arming a
+   * component with one tap and dropping it with a second is the same gesture
+   * without the parts that need a mouse.
+   */
+  const placeComponent = useCallback(
+    (kind: ComponentKind, screenX: number, screenY: number) => {
+      const component = makeComponent(kind)
+      if (!component) return
+      const position = screenToFlowPosition({ x: screenX, y: screenY })
       setNodes((nds) => [
         ...nds,
         {
-          id,
+          id: component.id,
           type: "component",
           position,
           data: { component },
         } as ComponentNodeType,
       ])
       justPlaced.current = true
-      setSelectedId(id)
+      setSelectedId(component.id)
     },
-    [screenToFlowPosition, setNodes],
+    [screenToFlowPosition, setNodes, makeComponent],
+  )
+
+  /**
+   * Add a component downstream of an existing one, already wired to it.
+   *
+   * The reason this exists is touch. Placing used to mean arming from a palette
+   * that lives on another tab, then finding empty canvas; connecting meant
+   * dragging a 7px handle onto another 7px handle. Both are fine with a mouse
+   * and miserable with a thumb. From a node, "what comes after this?" is one
+   * tap and a menu -- and it is the question the diagram is asking anyway.
+   */
+  /** Wire one existing node to another, with the same defaults a drag gives. */
+  const connectNodes = useCallback(
+    (sourceId: string, targetId: string) => {
+      const target = nodes.find((n) => n.id === targetId)
+      const kind =
+        target?.type === "component" ? target.data.component.kind : undefined
+      setEdges((eds) =>
+        addEdge(
+          {
+            id: `${sourceId}->${targetId}`,
+            source: sourceId,
+            target: targetId,
+            animated: true,
+            data: {
+              kind: "sync-request",
+              carries: kind ? defaultCarries(kind) : "all",
+              fanout: 1,
+              circuitBreaker: false,
+              timeoutMs: 2000,
+            } satisfies EdgeConfig,
+          },
+          eds,
+        ),
+      )
+    },
+    [nodes, setEdges],
+  )
+
+  const openAddAfter = useCallback(
+    (sourceId: string) => setAdding({ sourceId }),
+    [],
+  )
+
+  const nodeActions = useMemo<NodeActions>(
+    () => ({
+      onAdd: openAddAfter,
+      connectingFrom,
+      startConnect: setConnectingFrom,
+      finishConnect: (targetId) => {
+        if (connectingFrom) connectNodes(connectingFrom, targetId)
+        setConnectingFrom(null)
+      },
+      // A plug that would make an edge already there is a plug that does
+      // nothing, and a control that does nothing reads as a broken one.
+      canReceive: (targetId) =>
+        !edges.some(
+          (e) => e.source === connectingFrom && e.target === targetId,
+        ),
+    }),
+    [openAddAfter, connectingFrom, connectNodes, edges],
+  )
+
+  /**
+   * Drop a component into the middle of whatever you are looking at.
+   *
+   * Unattached on purpose. Building strictly downstream forces you to decide
+   * the order of a system before you have seen its shape, and the pieces you
+   * are least sure about are exactly the ones worth putting down early and
+   * wiring later.
+   */
+  const placeInView = useCallback(
+    (kind: ComponentKind) => {
+      const component = makeComponent(kind)
+      const box = wrapper.current?.getBoundingClientRect()
+      if (!component || !box) return
+      const centre = screenToFlowPosition({
+        x: box.x + box.width / 2,
+        y: box.y + box.height / 2,
+      })
+      setNodes((nds) => [
+        ...nds,
+        {
+          id: component.id,
+          type: "component",
+          position: freeSlot(nds, centre),
+          data: { component },
+        } as ComponentNodeType,
+      ])
+      justPlaced.current = true
+      setSelectedId(component.id)
+    },
+    [makeComponent, screenToFlowPosition, setNodes],
+  )
+
+  const addDownstream = useCallback(
+    (sourceId: string, kind: ComponentKind) => {
+      const component = makeComponent(kind)
+      if (!component) return
+      setNodes((nds) => {
+        const source = nds.find((n) => n.id === sourceId)
+        // Step down past anything already in that slot, so a node with three
+        // dependants fans out instead of stacking them on one another.
+        const position = freeSlot(
+          nds,
+          source
+            ? { x: source.position.x + 300, y: source.position.y }
+            : { x: 0, y: 0 },
+        )
+        return [
+          ...nds,
+          {
+            id: component.id,
+            type: "component",
+            position,
+            data: { component },
+          } as ComponentNodeType,
+        ]
+      })
+      setEdges((eds) =>
+        addEdge(
+          {
+            id: `${sourceId}->${component.id}`,
+            source: sourceId,
+            target: component.id,
+            animated: true,
+            data: {
+              kind: "sync-request",
+              carries: defaultCarries(kind),
+              fanout: 1,
+              circuitBreaker: false,
+              timeoutMs: 2000,
+            } satisfies EdgeConfig,
+          },
+          eds,
+        ),
+      )
+      justPlaced.current = true
+      setSelectedId(component.id)
+    },
+    [makeComponent, setNodes, setEdges],
   )
 
   const [armedKind, setArmedKind] = useState<ComponentKind | null>(null)
+  /**
+   * The open add-a-component menu: from a node's "+", or unattached from the
+   * floating button. Null when it is closed.
+   */
+  const [adding, setAdding] = useState<{ sourceId: string | null } | null>(null)
   /**
    * Set while the selection came from placing rather than from tapping an
    * existing component. Placing selects the new node so its config is ready,
@@ -327,13 +512,15 @@ function Workspace({ scenario }: { scenario: Scenario }) {
   const justPlaced = useRef(false)
 
   useEffect(() => {
-    if (!armedKind) return
+    if (!armedKind && !connectingFrom) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setArmedKind(null)
+      if (e.key !== "Escape") return
+      setArmedKind(null)
+      setConnectingFrom(null)
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [armedKind])
+  }, [armedKind, connectingFrom])
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -671,7 +858,11 @@ function Workspace({ scenario }: { scenario: Scenario }) {
             </ul>
           </div>
 
-          <div className="mt-5">
+          {/* Desktop only. On a phone the palette sat on the brief tab while
+              the canvas was on another, so arming a component meant tapping on
+              one screen and placing on a different one. The "+" on a node and
+              the floating add button replace it there. */}
+          <div className="mt-5 max-sm:hidden">
             <Palette
               kinds={scenario.availableKinds}
               armed={armedKind}
@@ -799,6 +990,22 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           </div>
         )}
 
+        {connectingFrom && (
+          <div className="border-pass/30 bg-pass/10 flex items-center gap-2 border-b px-4 py-2 text-[12px] sm:hidden">
+            <Plug size={13} className="text-pass shrink-0" />
+            <span className="text-chalk">
+              Tap a red plug to connect{" "}
+              <strong>{labelOf(connectingFrom)}</strong> to it.
+            </span>
+            <button
+              onClick={() => setConnectingFrom(null)}
+              className="text-fog hover:text-chalk ml-auto shrink-0 underline underline-offset-2"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
         {armedKind && (
           <div className="border-accent/30 bg-accent/10 flex items-center gap-2 border-b px-4 py-2 text-[12px]">
             <MousePointerClick size={13} className="text-accent shrink-0" />
@@ -815,57 +1022,97 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           </div>
         )}
 
-        <div
-          ref={wrapper}
-          className={`min-h-0 flex-1 ${armedKind ? "cursor-crosshair" : ""}`}
-        >
-          <ReactFlow
-            nodes={decoratedNodes}
-            edges={decoratedEdges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onDrop={onDrop}
-            onDragOver={(e) => {
-              e.preventDefault()
-              e.dataTransfer.dropEffect = "move"
-            }}
-            onNodeClick={(event, n) => {
-              if (armedKind) {
-                placeComponent(armedKind, event.clientX, event.clientY)
-                setArmedKind(null)
-                return
-              }
-              setSelectedId(n.id)
-              setSelectedEdgeId(null)
-            }}
-            onEdgeClick={(_, e) => {
-              setSelectedEdgeId(e.id)
-              setSelectedId(null)
-            }}
-            onPaneClick={(event) => {
-              if (armedKind) {
-                placeComponent(armedKind, event.clientX, event.clientY)
-                setArmedKind(null)
-                return
-              }
-              setSelectedId(null)
-              setSelectedEdgeId(null)
-            }}
-            nodeTypes={nodeTypes}
-            fitView
-            // Without a cap, fitView on a near-empty canvas zooms the single
-            // client node until it fills the screen.
-            fitViewOptions={{ maxZoom: 1, padding: 0.3 }}
-            minZoom={0.3}
-            maxZoom={1.75}
-            proOptions={{ hideAttribution: true }}
+        <NodeActionsContext.Provider value={nodeActions}>
+          <div
+            ref={wrapper}
+            className={`relative min-h-0 flex-1 ${armedKind ? "cursor-crosshair" : ""}`}
           >
-            <Background color="#273040" gap={18} size={1} />
-            <Controls className="!bg-panel !border-line [&_button]:!bg-panel [&_button]:!border-line [&_button]:!fill-chalk" />
-          </ReactFlow>
-        </div>
+            <ReactFlow
+              nodes={decoratedNodes}
+              edges={decoratedEdges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onDrop={onDrop}
+              onDragOver={(e) => {
+                e.preventDefault()
+                e.dataTransfer.dropEffect = "move"
+              }}
+              onNodeClick={(event, n) => {
+                // The red plug stops propagation, so a tap that reaches the
+                // node body is a tap somewhere else: abandon.
+                if (connectingFrom) {
+                  setConnectingFrom(null)
+                  return
+                }
+                if (armedKind) {
+                  placeComponent(armedKind, event.clientX, event.clientY)
+                  setArmedKind(null)
+                  return
+                }
+                setSelectedId(n.id)
+                setSelectedEdgeId(null)
+              }}
+              onEdgeClick={(_, e) => {
+                setSelectedEdgeId(e.id)
+                setSelectedId(null)
+              }}
+              onPaneClick={(event) => {
+                if (connectingFrom) {
+                  setConnectingFrom(null)
+                  return
+                }
+                if (armedKind) {
+                  placeComponent(armedKind, event.clientX, event.clientY)
+                  setArmedKind(null)
+                  return
+                }
+                setSelectedId(null)
+                setSelectedEdgeId(null)
+              }}
+              nodeTypes={nodeTypes}
+              fitView
+              // Without a cap, fitView on a near-empty canvas zooms the single
+              // client node until it fills the screen.
+              fitViewOptions={{ maxZoom: 1, padding: 0.3 }}
+              minZoom={0.3}
+              maxZoom={1.75}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background color="#273040" gap={18} size={1} />
+              <Controls className="!bg-panel !border-line [&_button]:!bg-panel [&_button]:!border-line [&_button]:!fill-chalk" />
+            </ReactFlow>
+
+            {/*
+              Over the canvas, thumb-height, small screens only. Building
+              strictly downstream from a "+" forces you to decide the order of
+              a system before you have seen its shape; the pieces you are least
+              sure about are exactly the ones worth putting down and wiring
+              later.
+            */}
+            <button
+              onClick={() => setAdding({ sourceId: null })}
+              aria-label="Add a component"
+              className="border-accent/50 bg-accent text-ink absolute right-4 bottom-4 z-20 flex h-12 w-12 items-center justify-center rounded-full border shadow-lg sm:hidden"
+            >
+              <Plus size={22} />
+            </button>
+          </div>
+        </NodeActionsContext.Provider>
       </div>
+
+      {adding && (
+        <AddComponentSheet
+          sourceLabel={adding.sourceId ? labelOf(adding.sourceId) : null}
+          kinds={scenario.availableKinds}
+          onPick={(kind) => {
+            if (adding.sourceId) addDownstream(adding.sourceId, kind)
+            else placeInView(kind)
+            setAdding(null)
+          }}
+          onClose={() => setAdding(null)}
+        />
+      )}
 
       {/* Right: config + results. Collapses to a spine so the canvas can have
           the width back; reopens itself whenever it has something to show. */}
@@ -903,6 +1150,19 @@ function Workspace({ scenario }: { scenario: Scenario }) {
             component={selected.data.component}
             onChange={updateComponent}
             onDelete={() => deleteComponent(selected.id)}
+            targets={nodes
+              // Never the traffic source: load enters the graph there, so an
+              // edge pointing back at it is not a thing that can exist, and
+              // offering it produces a connection the engine silently drops.
+              .filter((n) => n.id !== selected.id && n.id !== CLIENT_NODE_ID)
+              .map((n) => ({
+                id: n.id,
+                label: labelOf(n.id),
+                connected: edges.some(
+                  (e) => e.source === selected.id && e.target === n.id,
+                ),
+              }))}
+            onConnect={(targetId) => connectNodes(selected.id, targetId)}
           />
         ) : selectedEdge ? (
           <EdgePanel

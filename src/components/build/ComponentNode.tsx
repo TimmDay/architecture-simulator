@@ -24,6 +24,7 @@ import {
   Zap,
 } from "lucide-react"
 import { CATALOGUE } from "~/sim/catalogue"
+import { NodeButtons } from "./AddFromNode"
 import { vendorLabel } from "~/sim/simulate"
 import type {
   ComponentKind,
@@ -95,6 +96,7 @@ export function stackLayers(instances: number): number {
 }
 
 export function ComponentNode({
+  id,
   data,
   selected,
 }: NodeProps<ComponentNodeType>) {
@@ -192,6 +194,7 @@ export function ComponentNode({
           </div>
         )}
         <Handle type="source" position={Position.Right} />
+        <NodeButtons nodeId={id} canBeTarget={true} />
       </div>
     </div>
   )

@@ -7,6 +7,9 @@ type Props = {
   component: PlacedComponent
   onChange: (next: PlacedComponent) => void
   onDelete: () => void
+  /** Everything this one could point at, and whether it already does. */
+  targets: { id: string; label: string; connected: boolean }[]
+  onConnect: (targetId: string) => void
 }
 
 const Row = ({
@@ -34,12 +37,20 @@ const num =
 const sel =
   "border-line bg-ink text-chalk rounded border px-2 py-1 text-[12px] outline-none focus:border-accent"
 
-export function ConfigPanel({ component, onChange, onDelete }: Props) {
+export function ConfigPanel({
+  component,
+  onChange,
+  onDelete,
+  targets,
+  onConnect,
+}: Props) {
   const spec = CATALOGUE[component.kind]
   if (!spec) return null
   const cfg = component.config
   const set = (patch: Partial<PlacedComponent["config"]>) =>
     onChange({ ...component, config: { ...cfg, ...patch } })
+
+  const unconnected = targets.filter((t) => !t.connected)
 
   return (
     <div>
@@ -347,6 +358,32 @@ export function ConfigPanel({ component, onChange, onDelete }: Props) {
             </Row>
           )}
       </div>
+
+      {/*
+        Connecting by dragging one 7px handle onto another is fine with a
+        mouse and impossible with a thumb -- a real touch drag between two
+        handles produces no edge at all. This is the same operation as a
+        list, which also happens to be the easier way to point something
+        backwards, at a database it reads from.
+      */}
+      {unconnected.length > 0 && (
+        <div className="border-line mt-3 border-t pt-3">
+          <h3 className="text-fog mb-1.5 text-xs font-medium tracking-wide uppercase">
+            Connect to
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {unconnected.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => onConnect(t.id)}
+                className="border-line text-chalk hover:border-accent/60 hover:text-accent rounded border px-2 py-1 text-[11px] transition-colors"
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <button
         onClick={onDelete}

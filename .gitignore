@@ -48,3 +48,6 @@ yarn-error.log*
 # smoke-test screenshots, rewritten on every run
 /.smoke/
 build-results.png
+
+# a second dev server needs its own cache, or two of them clobber each other
+/.next-dev*/
