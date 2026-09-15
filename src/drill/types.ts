@@ -37,6 +37,16 @@ export type Card = {
    */
   expands?: string
   /**
+   * A short gloss on a term the answer leans on.
+   *
+   * A one-line definition that itself uses jargon has moved the problem rather
+   * than solved it: "a hot key expiring" is only an answer if you already know
+   * what a hot key is. Vocabulary answers are held to one line on purpose, so
+   * the second term gets its own line instead of bloating the first -- and, like
+   * `expands`, it stays out of the multiple-choice options.
+   */
+  note?: string
+  /**
    * The trade-off conversation rather than the definition -- what a senior
    * engineering manager is expected to add on top of a correct answer. Shown
    * below the model answer on the flip, never used for grading.

@@ -106,6 +106,11 @@ export function DiscussCard({
                   </span>
                 )}
                 {card.answer}
+                {card.note && (
+                  <span className="text-fog mt-2 block text-[12px] leading-relaxed">
+                    {card.note}
+                  </span>
+                )}
               </p>
             </div>
           </div>

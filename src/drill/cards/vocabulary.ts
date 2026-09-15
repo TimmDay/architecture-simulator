@@ -540,6 +540,7 @@ export const vocabularyCards: Card[] = [
     prompt: "Cache stampede",
     answer:
       "A hot key expiring and sending every concurrent reader to the origin at once",
+    note: "A hot key is one cache entry a large share of traffic wants at the same moment — the recipe on the front page, not one of a million.",
     topicIds: ["caching.stampede"],
     tier: 1,
     speed: [

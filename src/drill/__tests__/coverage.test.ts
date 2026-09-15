@@ -107,14 +107,27 @@ describe("deck coverage", () => {
     ).toEqual([])
   })
 
-  it("does not leak the expansion into the multiple-choice options", () => {
+  it("keeps a vocabulary gloss to one line too", () => {
+    // The gloss exists so the definition can stay short. A paragraph in it
+    // would put the paragraph back.
+    for (const card of ALL_CARDS.filter(
+      (c) => c.deck === "vocabulary" && c.note,
+    )) {
+      expect(
+        card.note!.length,
+        `${card.id} gloss is not one line`,
+      ).toBeLessThan(170)
+    }
+  })
+
+  it("does not leak the expansion or the gloss into the multiple-choice options", () => {
     // It sits beside the answer, never inside it -- an option carrying the
     // spelled-out form would give the card away on sight.
-    for (const card of ALL_CARDS.filter((c) => c.expands)) {
+    for (const card of ALL_CARDS.filter((c) => c.expands ?? c.note)) {
       for (const v of card.speed) {
-        expect([v.correct, ...v.distractors].join(" ")).not.toContain(
-          card.expands,
-        )
+        const options = [v.correct, ...v.distractors].join(" ")
+        if (card.expands) expect(options).not.toContain(card.expands)
+        if (card.note) expect(options).not.toContain(card.note)
       }
     }
   })

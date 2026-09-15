@@ -196,6 +196,11 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
               )}
               {card.answer}
             </p>
+            {card.note && (
+              <p className="text-fog/70 mt-1.5 text-[11px] leading-relaxed">
+                {card.note}
+              </p>
+            )}
             <div className="mt-4 flex gap-2">
               <button
                 onClick={() => advance(false)}
