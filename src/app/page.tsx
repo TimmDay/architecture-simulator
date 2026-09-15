@@ -4,6 +4,18 @@ import { ALL_CARDS } from "~/drill/cards"
 import { SCENARIOS } from "~/sim/scenarios"
 import { ALL_TOPIC_IDS } from "~/topics"
 
+/**
+ * Where "buy me a coffee" points. Set it to your page on whichever service you
+ * pick and the text becomes a link; leave it null and it stays plain prose, so
+ * a half-finished setup never ships a dead link.
+ *
+ * Deliberately a plain outbound link rather than any service's embeddable
+ * widget. Widgets load third-party script and set cookies, which would make
+ * the sentence above it -- "your data stays in your browser" -- untrue on the
+ * one page that makes the claim.
+ */
+const DONATE_URL: string | null = null
+
 export default function HomePage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
@@ -20,8 +32,21 @@ export default function HomePage() {
       </p>
       <p className="text-fog mt-3 max-w-2xl text-[15px] leading-relaxed">
         Content is free and zipped locally. Your data is your own and stays in
-        your browser. You can buy me a coffee if you want to affirm my choice to
-        say f u to ads (noting that yes, I am redundant).
+        your browser. You can{" "}
+        {DONATE_URL ? (
+          <a
+            href={DONATE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent hover:text-chalk underline underline-offset-2 transition-colors"
+          >
+            buy me a coffee
+          </a>
+        ) : (
+          "buy me a coffee"
+        )}{" "}
+        if you want to affirm my choice to say f u to ads (noting that yes, I am
+        redundant).
       </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
