@@ -15,7 +15,14 @@ import {
 import { getProgressStore } from "~/storage"
 import { TOPICS } from "~/topics"
 
-type Props = { cards: Card[]; states: Map<string, CardState> }
+type Props = {
+  cards: Card[]
+  states: Map<string, CardState>
+  /** Fired when a question is answered -- Mix counts these towards its ratio. */
+  onAnswered?: () => void
+  /** Fired when moving on, which is where Mix slots its Discuss card in. */
+  onAdvance?: () => void
+}
 
 type DeckFilter = "all" | "core" | "vocabulary"
 
@@ -25,7 +32,7 @@ const DECK_TABS: [DeckFilter, string, string][] = [
   ["vocabulary", "Vocabulary", "One-line definitions of the terms"],
 ]
 
-export function SpeedSession({ cards, states }: Props) {
+export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
   const [deck, setDeck] = useState<DeckFilter>("all")
   // Built once. A card with three variants contributes three questions, and
   // no two questions about the same card sit next to each other.
@@ -50,6 +57,7 @@ export function SpeedSession({ cards, states }: Props) {
   const advance = useCallback(
     (random: boolean) => {
       setPicked(null)
+      onAdvance?.()
       if (random) {
         // A different card, not merely the next one -- drilling in a fixed order
         // teaches the order as much as the material.
@@ -63,7 +71,7 @@ export function SpeedSession({ cards, states }: Props) {
         setIndex((i) => (i + 1) % Math.max(1, order.length))
       }
     },
-    [order.length],
+    [order.length, onAdvance],
   )
 
   const pick = useCallback(
@@ -77,8 +85,9 @@ export function SpeedSession({ cards, states }: Props) {
         const next = recordSpeedAnswer(state, correct)
         if (next !== state) void getProgressStore().saveCardState(next)
       }
+      onAnswered?.()
     },
-    [picked, card, options, states],
+    [picked, card, options, states, onAnswered],
   )
 
   if (!item || !card) {

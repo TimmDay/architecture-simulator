@@ -11,7 +11,10 @@ export default function HomePage() {
         Learn system architecture by defending it.
       </h1>
       <p className="text-fog mt-3 max-w-2xl text-[15px] leading-relaxed">
-        Two modes over one topic taxonomy. Drill recalls the ideas; Build makes
+        Made redundant and need to study for interviews? I'm with ya.
+      </p>
+      <p className="text-fog mt-3 max-w-2xl text-[15px] leading-relaxed">
+                Drill recalls the ideas; Build makes
         you apply them under load, faults and a budget. Fail a rule in Build and
         the matching cards land in tomorrow&apos;s Drill queue.
       </p>
@@ -24,8 +27,7 @@ export default function HomePage() {
           <Layers className="text-accent" size={22} />
           <h2 className="text-chalk mt-4 text-lg font-medium">Drill</h2>
           <p className="text-fog mt-1.5 text-sm leading-relaxed">
-            Type your answer, then judge it against the model answer. Spaced
-            repetition does the scheduling.
+            Multiple choice or discuss. Learn the vocab to defend your architecture choices.
           </p>
           <p className="text-fog/70 mt-4 text-xs">
             {ALL_CARDS.length} cards · {ALL_TOPIC_IDS.length} topics
