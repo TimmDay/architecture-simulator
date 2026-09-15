@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { PomodoroTimer } from "./PomodoroTimer"
 import { Boxes, ChartNoAxesColumn, Home, Layers } from "lucide-react"
 
 const LINKS = [
@@ -35,6 +36,8 @@ export function Nav() {
             </Link>
           )
         })}
+
+        <PomodoroTimer />
       </div>
     </nav>
   )
