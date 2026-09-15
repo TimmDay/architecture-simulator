@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Coffee, Pause, Play, X } from "lucide-react"
+import { GoalTrophy } from "./GoalTrophy"
 import {
   BREAK_MINUTES,
   FOCUS_MINUTES,
   IDLE,
+  completedToday,
+  dayKey,
   formatRemaining,
   isActive,
   isPaused,
@@ -147,6 +150,7 @@ export function PomodoroTimer() {
 
   if (!hydrated) return null
 
+  const doneToday = completedToday(state, now)
   const active = isActive(state)
   const paused = isPaused(state)
   const done = state.phase === "done"
@@ -154,10 +158,8 @@ export function PomodoroTimer() {
   return (
     <>
       <div className="ml-auto flex items-center gap-2">
-        {state.completedToday > 0 && (
-          <span className="text-fog/60 text-[11px]">
-            {state.completedToday}/2 today
-          </span>
+        {doneToday > 0 && (
+          <span className="text-fog/60 text-[11px]">{doneToday}/2 today</span>
         )}
 
         <div className="group relative">
@@ -201,6 +203,8 @@ export function PomodoroTimer() {
             {hint(state, now)}
           </span>
         </div>
+
+        <GoalTrophy timer={state} now={now} />
       </div>
 
       {done && (
@@ -208,7 +212,7 @@ export function PomodoroTimer() {
           <Coffee size={15} className="text-pass shrink-0" />
           <span className="text-chalk">
             {FOCUS_MINUTES} minutes done
-            {state.completedToday >= 2
+            {doneToday >= 2
               ? " — that is both sessions for today."
               : ". Stand up, look at something further away than a screen."}
           </span>
