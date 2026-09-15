@@ -22,7 +22,8 @@ export function AddComponentSheet({
   onPick,
   onClose,
 }: {
-  sourceLabel: string
+  /** The node this will be wired from, or null to drop it in unattached. */
+  sourceLabel: string | null
   kinds: ComponentKind[]
   onPick: (kind: ComponentKind) => void
   onClose: () => void
@@ -43,17 +44,23 @@ export function AddComponentSheet({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`Add a component after ${sourceLabel}`}
+        aria-label={
+          sourceLabel
+            ? `Add a component after ${sourceLabel}`
+            : "Add a component"
+        }
         onClick={(e) => e.stopPropagation()}
         className="border-line bg-panel max-h-[75vh] w-full overflow-y-auto rounded-t-2xl border-t p-4"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-chalk text-[14px] font-medium">
-              Add after {sourceLabel}
+              {sourceLabel ? `Add after ${sourceLabel}` : "Add a component"}
             </h2>
             <p className="text-fog/70 mt-0.5 text-[11px]">
-              It will be wired up from {sourceLabel}.
+              {sourceLabel
+                ? `It will be wired up from ${sourceLabel}.`
+                : "Dropped in unattached — connect it from its Configure panel."}
             </p>
           </div>
           <button
