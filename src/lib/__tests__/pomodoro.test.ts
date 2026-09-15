@@ -5,11 +5,16 @@ import {
   IDLE,
   dayKey,
   formatRemaining,
+  isPaused,
+  pause,
   remainingMinutes,
+  remainingMs,
+  resume,
   start,
   stop,
   tabTitle,
   tick,
+  togglePause,
   type TimerState,
 } from "../pomodoro"
 
@@ -51,6 +56,77 @@ describe("running a focus session", () => {
     const s = tick(stop(start(IDLE, "focus", T0)), T0 + mins(30))
     expect(s.phase).toBe("idle")
     expect(s.completedToday).toBe(0)
+  })
+})
+
+describe("pausing", () => {
+  it("holds the time left rather than a moment in time", () => {
+    const s = pause(start(IDLE, "focus", T0), T0 + mins(5))
+    expect(isPaused(s)).toBe(true)
+    expect(s.endsAt).toBeNull()
+    expect(remainingMs(s, T0 + mins(5))).toBe(mins(20))
+    // An hour later it has still lost nothing -- a pause has no end until you
+    // resume it, so wall-clock time must not touch it.
+    expect(remainingMs(s, T0 + mins(65))).toBe(mins(20))
+  })
+
+  it("resumes into a fresh end timestamp", () => {
+    const paused = pause(start(IDLE, "focus", T0), T0 + mins(5))
+    const back = resume(paused, T0 + mins(20))
+    expect(isPaused(back)).toBe(false)
+    expect(back.endsAt).toBe(T0 + mins(40))
+    expect(remainingMinutes(back, T0 + mins(20))).toBe(20)
+  })
+
+  it("never finishes while paused, however long it is left", () => {
+    // The bug that matters: ticking a paused timer past its ORIGINAL end would
+    // count a focus session the user did not sit through.
+    const paused = pause(start(IDLE, "focus", T0), T0 + mins(5))
+    const ticked = tick(paused, T0 + mins(90))
+    expect(ticked.phase).toBe("focus")
+    expect(ticked.completedToday).toBe(0)
+    expect(remainingMs(ticked, T0 + mins(90))).toBe(mins(20))
+  })
+
+  it("survives a reload, which is how the component rehydrates it", () => {
+    const paused = pause(start(IDLE, "focus", T0), T0 + mins(5))
+    const reloaded = tick(
+      JSON.parse(JSON.stringify(paused)) as TimerState,
+      T0 + mins(40),
+    )
+    expect(isPaused(reloaded)).toBe(true)
+    expect(remainingMinutes(reloaded, T0 + mins(40))).toBe(20)
+  })
+
+  it("toggles both ways", () => {
+    const running = start(IDLE, "focus", T0)
+    const off = togglePause(running, T0 + mins(1))
+    const on = togglePause(off, T0 + mins(3))
+    expect(isPaused(off)).toBe(true)
+    expect(isPaused(on)).toBe(false)
+    expect(remainingMinutes(on, T0 + mins(3))).toBe(24)
+  })
+
+  it("clears the hold when stopped, so the next session starts clean", () => {
+    const s = start(
+      stop(pause(start(IDLE, "focus", T0), T0 + mins(5))),
+      "focus",
+      T0 + mins(10),
+    )
+    expect(s.pausedMs).toBeNull()
+    expect(remainingMinutes(s, T0 + mins(10))).toBe(FOCUS_MINUTES)
+  })
+
+  it("does nothing to a timer that is not running", () => {
+    expect(pause(IDLE)).toBe(IDLE)
+    expect(resume(IDLE)).toBe(IDLE)
+  })
+
+  it("says so in the tab title", () => {
+    const s = pause(start(IDLE, "focus", T0), T0 + mins(5))
+    expect(tabTitle(s, "Architecture Simulator", T0 + mins(30))).toBe(
+      "Paused 20:00 — Architecture Simulator",
+    )
   })
 })
 

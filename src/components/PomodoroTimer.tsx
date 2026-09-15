@@ -1,22 +1,36 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { Coffee, Play, X } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Coffee, Pause, Play, X } from "lucide-react"
 import {
   BREAK_MINUTES,
   FOCUS_MINUTES,
   IDLE,
   formatRemaining,
+  isActive,
+  isPaused,
   remainingMinutes,
   start,
   stop,
   tabTitle,
   tick,
+  togglePause,
   type TimerState,
 } from "~/lib/pomodoro"
 
 const KEY = "architecture-simulator:pomodoro:v1"
 const BASE_TITLE = "Architecture Simulator"
+
+/**
+ * How close two clicks must be to count as one double-click.
+ *
+ * The first click acts immediately (pause) and the second reverses it and
+ * stops, rather than every single click waiting to see whether a second one
+ * arrives -- a pause that lags a third of a second feels broken. The cost is
+ * that pausing and unpausing again within this window reads as a stop, which
+ * is why the tooltip says so out loud.
+ */
+const DOUBLE_CLICK_MS = 300
 
 function load(): TimerState {
   if (typeof window === "undefined") return IDLE
@@ -36,6 +50,14 @@ function save(state: TimerState) {
   }
 }
 
+function hint(state: TimerState, now: number): string {
+  if (isPaused(state))
+    return `Paused at ${formatRemaining(state, now)} · click to resume · double-click to stop`
+  if (isActive(state))
+    return `${formatRemaining(state, now)} left · click to pause · double-click to stop`
+  return `Start a ${FOCUS_MINUTES} minute session`
+}
+
 /**
  * A study timer in the nav.
  *
@@ -43,8 +65,8 @@ function save(state: TimerState) {
  * and Build -- the layout does not remount on navigation, and a timer that
  * resets when you go and look at a scenario is useless for studying.
  *
- * It is persisted as an end timestamp, so a reload mid-session picks the timer
- * back up where it was rather than starting again.
+ * It is persisted every second, so a reload mid-session picks the timer back up
+ * where it was -- including mid-pause.
  */
 export function PomodoroTimer() {
   const [state, setState] = useState<TimerState>(IDLE)
@@ -59,6 +81,7 @@ export function PomodoroTimer() {
    * to make the component redraw.
    */
   const [now, setNow] = useState(() => Date.now())
+  const lastClick = useRef(0)
 
   useEffect(() => {
     setState(tick(load()))
@@ -102,46 +125,82 @@ export function PomodoroTimer() {
   )
   const cancel = useCallback(() => setState((s) => stop(s)), [])
 
+  const handleClick = useCallback(() => {
+    const t = Date.now()
+    if (!isActive(state)) {
+      // Deliberately leaves the double-click unarmed. Starting is the most
+      // common interaction and trackpads double-fire, so a stray second click
+      // should pause -- one click to undo -- not silently destroy the session
+      // that was just started and look like the button did nothing.
+      lastClick.current = 0
+      begin("focus")
+      return
+    }
+    if (t - lastClick.current < DOUBLE_CLICK_MS) {
+      lastClick.current = 0
+      cancel()
+      return
+    }
+    lastClick.current = t
+    setState((s) => togglePause(s))
+  }, [state, begin, cancel])
+
   if (!hydrated) return null
 
-  const running = state.phase === "focus" || state.phase === "break"
+  const active = isActive(state)
+  const paused = isPaused(state)
   const done = state.phase === "done"
 
   return (
     <>
       <div className="ml-auto flex items-center gap-2">
         {state.completedToday > 0 && (
-          <span
-            className="text-fog/60 text-[11px]"
-            title={`${state.completedToday} focus session${state.completedToday === 1 ? "" : "s"} finished today`}
-          >
+          <span className="text-fog/60 text-[11px]">
             {state.completedToday}/2 today
           </span>
         )}
 
-        <button
-          onClick={() => (running ? cancel() : begin("focus"))}
-          title={
-            running
-              ? `${formatRemaining(state, now)} left — click to stop`
-              : `Start a ${FOCUS_MINUTES} minute session`
-          }
-          aria-label={running ? "Stop the timer" : "Start a study session"}
-          className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors ${
-            running
-              ? "bg-accent/15 text-accent hover:bg-accent/25"
-              : done
-                ? "bg-pass/15 text-pass"
-                : "text-fog hover:text-chalk"
-          }`}
-        >
-          <Tomato size={15} />
-          {running && (
-            <span className="font-mono text-[12px] tabular-nums">
-              {remainingMinutes(state, now)}
-            </span>
-          )}
-        </button>
+        <div className="group relative">
+          <button
+            onClick={handleClick}
+            aria-label={
+              paused
+                ? "Resume the timer. Double-click to stop it."
+                : active
+                  ? "Pause the timer. Double-click to stop it."
+                  : "Start a study session"
+            }
+            className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors ${
+              paused
+                ? "bg-panel-2 text-fog/70"
+                : active
+                  ? "bg-accent/15 text-accent hover:bg-accent/25"
+                  : done
+                    ? "bg-pass/15 text-pass"
+                    : "text-fog hover:text-chalk"
+            }`}
+          >
+            <Tomato size={15} />
+            {active && (
+              <span className="flex items-center gap-1 font-mono text-[12px] tabular-nums">
+                {paused && <Pause size={10} fill="currentColor" />}
+                {remainingMinutes(state, now)}
+              </span>
+            )}
+          </button>
+
+          {/*
+            A plain `title` attribute waits about a second before appearing,
+            which is far too slow to answer "what does clicking this do?".
+            Pure CSS hover, so it shows the instant the pointer lands.
+          */}
+          <span
+            role="tooltip"
+            className="border-line bg-panel-2 text-chalk pointer-events-none invisible absolute top-full right-0 z-50 mt-1.5 rounded-md border px-2 py-1 text-[11px] whitespace-nowrap opacity-0 shadow-lg group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100"
+          >
+            {hint(state, now)}
+          </span>
+        </div>
       </div>
 
       {done && (
