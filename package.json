@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "NEXT_DIST_DIR=.next-build next build",
-    "start": "NEXT_DIST_DIR=.next-build next start",
+    "build": "next build",
+    "build:local": "NEXT_DIST_DIR=.next-build next build",
+    "start": "next start",
+    "start:local": "NEXT_DIST_DIR=.next-build next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit && vitest run",
@@ -44,6 +46,9 @@
     "tailwindcss": "^4.0.15",
     "typescript": "^5.8.2",
     "vitest": "^4.0.15"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "packageManager": "pnpm@12.3.4+sha512.961aa41fb077da3a04a441d9f8e15ebc0c96da8ef710b2eb67bf9ee7cb0610eabd48f1fd85f51cffe73846785fa0f87c56a3a872a1d893f8446741b5cce45457"
 }
