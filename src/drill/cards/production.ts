@@ -182,6 +182,7 @@ export const productionCards: Card[] = [
       "How do you actually define and measure an SLO, and what makes one useless?",
     answer:
       "Pick an SLI that reflects user experience — the proportion of requests served successfully under a latency threshold — measured as close to the user as practical. Set a target over a rolling window: 99.9% of checkout requests under 500ms over 28 days. The gap between the target and 100% is the error budget, and exhausting it changes what the team works on. An SLO is useless when it measures the wrong thing (server-side CPU, uptime of a host rather than success of a request), when the target is picked as a round number rather than from what users need, or when nothing changes when it is missed.",
+    expands: "SLO: Service Level Objective · SLI: Service Level Indicator",
     emFraming:
       "The discipline is choosing a number below 100 and meaning it. A team that has never spent its error budget is either over-investing in reliability or not measuring the thing that actually breaks.",
     topicIds: [

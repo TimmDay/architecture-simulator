@@ -7,6 +7,7 @@ export const distributedCards: Card[] = [
       "During a network partition, how does a CP system behave, and what does the user see?",
     answer:
       "It refuses to serve requests it cannot answer correctly. The minority side of the partition stops accepting writes — and usually reads that must be current — rather than risk diverging from the majority, so those users get errors or timeouts. The majority side, if it still has a quorum, carries on normally. When the partition heals there is nothing to reconcile, because divergence was never allowed to happen. You have traded availability for the guarantee that anything you did serve was correct.",
+    expands: "CP: consistency and partition tolerance, availability given up",
     emFraming:
       "The right framing for the product conversation is: would you rather this be unavailable for four minutes, or serve two people the same seat? For inventory, balances and bookings, refusing is the cheaper failure.",
     topicIds: [
@@ -34,6 +35,7 @@ export const distributedCards: Card[] = [
       "During a partition, how does an AP system behave, and what has to happen after the partition heals?",
     answer:
       "Both sides keep accepting reads and writes, so nobody sees an error — and both sides diverge, because neither can see the other's writes. When the partition heals the divergence has to be reconciled: last-write-wins using timestamps (simple, and silently discards data), version vectors that detect the conflict and hand it to the application, or CRDTs whose merge is defined so that any order converges. The availability was real; the cost is that 'what is the current value' had more than one answer for a while, and something must decide.",
+    expands: "AP: availability and partition tolerance, consistency given up",
     emFraming:
       "The question to ask whenever a team says they are AP: what is your merge strategy, and who wrote it? If the answer is 'last write wins' by default, they have chosen to lose data silently — which may be fine for a presence indicator and is not fine for a shopping basket.",
     topicIds: [

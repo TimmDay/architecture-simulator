@@ -7,6 +7,7 @@ export const storageEngineCards: Card[] = [
       "LSM tree versus B-tree: what is each good at, and why does it explain the choice between Cassandra and Postgres?",
     answer:
       "A B-tree updates pages in place, so a write is a seek and a page write, and reads are a handful of page reads down a shallow tree — excellent for reads and for range scans, and the write path is bounded by random I/O. An LSM tree appends to an in-memory table, flushes it as an immutable sorted file, and merges files in the background, so writes are sequential and fast, but a read may have to check several files and relies on Bloom filters and caching to stay quick. That is the trade: LSM buys write throughput and pays in read amplification and background compaction; B-tree buys predictable reads and pays in random write I/O. Cassandra and RocksDB are LSM; Postgres and MySQL are B-tree.",
+    expands: "LSM: Log-Structured Merge-tree",
     emFraming:
       "The operational tail of LSM is compaction: it consumes I/O in the background and, if it falls behind, read latency degrades and disk use grows. A system that looks fine in a benchmark can behave very differently once compaction is competing with live traffic, which is why 'it does a million writes a second' needs the question 'for how long?'.",
     topicIds: [
@@ -195,6 +196,7 @@ export const storageEngineCards: Card[] = [
       "Why does an auto-incrementing primary key break once you shard, and what replaces it?",
     answer:
       "Because the counter lives in one place. Sharded, either every shard issues the same ids or they all serialise on one allocator, which becomes the bottleneck and the single point of failure you sharded to avoid. Replacements: random UUIDv4, which is trivially distributed but destroys index locality because inserts land all over the B-tree; Snowflake-style ids, which pack a timestamp with a machine id and a per-millisecond sequence into 64 bits so they are sortable by time, compact and generated locally; and UUIDv7, which is the same idea in the UUID format. Sortability matters more than people expect — time-ordered keys keep inserts at the end of the index and make range queries by time free.",
+    expands: "UUID: Universally Unique Identifier — v4 is the random variant",
     emFraming:
       "Snowflake's weakness is clock dependence: an id contains a timestamp, so a clock moving backwards can produce duplicates, and implementations have to detect it and refuse to issue rather than carry on. Worth asking about whenever someone proposes rolling their own.",
     topicIds: [

@@ -7,6 +7,8 @@ export const consistencyCards: Card[] = [
       "State CAP precisely. What is the choice actually between, and when does it apply?",
     answer:
       "In the presence of a network Partition, a distributed system must choose between Consistency (every read sees the latest write, i.e. linearizability) and Availability (every request to a non-failing node gets a non-error response). It is not a choice between three properties -- partition tolerance is not optional on a real network, so the only live choice is C or A, and only while a partition is happening.",
+    expands:
+      "Consistency, Availability, Partition tolerance · CP: consistent under partition · AP: available under partition",
     emFraming:
       "The common failure in interviews and in design reviews is treating CAP as 'pick 2 of 3' and declaring a system 'AP'. Push back: ask which specific operation, on which data, during which partition. A system is almost never uniformly CP or AP -- a payment write and a profile-avatar read in the same product should make different choices.",
     topicIds: ["consistency.cap"],
@@ -50,6 +52,8 @@ export const consistencyCards: Card[] = [
       "What does PACELC add to CAP, and why is the addition the more useful half day to day?",
     answer:
       "PACELC: if there is a Partition, choose Availability or Consistency; Else (the normal case, no partition) choose Latency or Consistency. The else-branch is the more useful half because partitions are rare and the latency/consistency trade-off is paid on every single request -- synchronous replication costs you a round trip on every write, forever.",
+    expands:
+      "Partition: Availability or Consistency; Else: Latency or Consistency",
     emFraming:
       "This is the frame that turns 'we're eventually consistent' from a shrug into a budget. Ask what staleness window the product can tolerate, in milliseconds, and hold the design to it.",
     topicIds: ["consistency.pacelc", "consistency.cap"],

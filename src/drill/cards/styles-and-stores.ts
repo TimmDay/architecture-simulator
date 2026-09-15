@@ -366,6 +366,8 @@ export const stylesAndStoresCards: Card[] = [
       "Distinguish OAuth 2.0, OIDC and JWT. What is each one actually doing?",
     answer:
       "OAuth 2.0 is an authorisation framework: it lets a user grant an application limited access to a resource without handing over their password, and produces an access token. OIDC is a thin identity layer on top, adding an ID token that says who the user is — OAuth alone never tells you that, which is the confusion behind a lot of broken 'login with' implementations. JWT is just a token format: a signed, base64 JSON payload that any holder can read and any party with the key can verify without a database lookup. The trade with JWTs is revocation — self-contained means you cannot easily invalidate one before it expires, which is why access tokens are short-lived and paired with a refresh token that can be revoked.",
+    expands:
+      "OAuth: Open Authorization · OIDC: OpenID Connect · JWT: JSON Web Token",
     emFraming:
       "Two things to check in review: that JWTs are verified with the expected algorithm and issuer rather than trusting the header, and that there is an actual answer to 'how do we log somebody out everywhere right now'. 'They expire in an hour' is an answer, but it should be a chosen one.",
     topicIds: [
@@ -546,6 +548,7 @@ export const stylesAndStoresCards: Card[] = [
       "How do users actually reach your nearest region, and what is DNS's role?",
     answer:
       "Two mechanisms. DNS-based routing returns a different IP depending on where the resolver is, which is simple and works everywhere but is coarse — it sees the resolver, not the user — and is slow to change because of TTL caching down a chain you do not control. Anycast advertises the same IP from many locations and lets BGP route each user to the topologically nearest one, which is fast, needs no client cooperation, and fails over in seconds rather than TTLs. Anycast is what CDNs and DNS providers themselves use; DNS routing is what most applications use because it needs no network ownership.",
+    expands: "DNS: Domain Name System",
     emFraming:
       "The operational consequence of TTLs is the one to internalise: a low TTL costs lookups and buys you the ability to move traffic quickly, and during an incident that difference is the difference between minutes and an hour. It is worth deciding before you need it.",
     topicIds: [

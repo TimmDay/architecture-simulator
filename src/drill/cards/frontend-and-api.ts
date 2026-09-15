@@ -7,6 +7,8 @@ export const frontendAndApiCards: Card[] = [
       "What makes a REST API well designed? Name the properties that actually matter and say what each one buys you.",
     answer:
       "Resources, not actions: URLs name things (`/orders/42/items`) and the HTTP method says what you are doing to them, so the API is predictable without documentation. Methods carry their standard semantics -- GET is safe and cacheable, PUT and DELETE are idempotent, POST is neither -- because every proxy, CDN and client library already assumes this. Status codes are used honestly, so 404 means absent, 409 means a conflict, 422 means it parsed but was invalid, and a 200 containing an error body breaks every caller's error handling. Responses are stateless, so any instance can serve any request. Collections are paginated by cursor rather than offset, because offsets skip and duplicate rows while the data changes underneath them. Errors have one machine-readable shape across every endpoint. Versioning is explicit, so you can change your mind later. And unsafe operations accept an idempotency key, because clients retry.",
+    expands:
+      "REST: Representational State Transfer · HTTP: HyperText Transfer Protocol",
     emFraming:
       'The two failures worth catching in review are RPC wearing REST\'s clothes -- `POST /createOrderAndSendEmail` -- and returning 200 with `{"error": ...}`, which forces every client to parse the body to find out whether it worked. Both are cheap to fix on day one and expensive once there are callers you do not control. Note also that HATEOAS is in the original definition of REST and almost nobody implements it; being able to say that plainly is better than pretending either way.',
     topicIds: [

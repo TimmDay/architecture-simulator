@@ -7,6 +7,7 @@ export const estimationCards: Card[] = [
       "Give the order of magnitude for: an L1 cache reference, a main-memory read, an SSD read, a datacentre round trip, and a cross-continent round trip. Why does knowing these matter?",
     answer:
       "Roughly: L1 cache ~1ns, main memory ~100ns, SSD random read ~100µs, round trip within a datacentre ~500µs, round trip London to New York ~70ms and to Sydney ~150ms. Each step is two to three orders of magnitude, which is the point. It means a design that turns one memory access into a network call has made it a thousand times slower, and that anything crossing an ocean has a floor you cannot optimise past. You use them to sanity-check a design in seconds: if a page needs twenty sequential cross-region calls, it cannot be fast, and no amount of tuning will change that.",
+    expands: "SSD: Solid State Drive",
     emFraming:
       "Speed of light in fibre is about 200,000 km/s, so London to Sydney and back has a physical floor near 100ms whatever you do. Being able to say that out loud settles a surprising number of arguments about whether a design can meet its latency target, and it is the difference between 'we'll optimise it' and 'we need to move the data'.",
     topicIds: ["fundamentals.latency-numbers", "fundamentals.estimation"],
@@ -49,6 +50,7 @@ export const estimationCards: Card[] = [
       "How do you structure a back-of-envelope estimate in an interview, and what are you actually demonstrating?",
     answer:
       "Work forward in one chain and say the assumption at each step: daily active users → actions per user per day → requests per day → divide by 86,400 for average QPS → multiply by 2 to 10 for peak → multiply by bytes per request for bandwidth → multiply by retention for storage. Round aggressively: 86,400 is 100,000, a million users at ten actions each is ten million requests a day, which is roughly 100 QPS average. What you are demonstrating is not arithmetic but judgement — that you know which numbers drive the design, that you can carry an assumption forward without losing it, and that you will notice when an answer is absurd.",
+    expands: "QPS: Queries Per Second",
     emFraming:
       "State assumptions out loud and invite correction: 'I'll assume ten million daily actives, say twenty actions each — stop me if that's wrong.' An interviewer who disagrees will tell you, and now you are designing together rather than being examined. The failure mode is silent arithmetic followed by a number nobody can audit.",
     topicIds: ["fundamentals.estimation", "interview.method"],

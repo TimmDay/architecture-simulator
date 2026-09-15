@@ -93,6 +93,52 @@ describe("deck coverage", () => {
     }
   })
 
+  /**
+   * Not acronyms: SQL keywords, terms universal enough that spelling them out
+   * would be noise, and ordinary words the deck shouts for emphasis.
+   *
+   * Keep it short. Every entry is a claim that a reader already knows
+   * something, and the emphasis words are the price of catching real acronyms
+   * anywhere in a sentence rather than only as a bare prompt.
+   */
+  const NOT_AN_ACRONYM = new Set([
+    // SQL and universal terms
+    "SQL",
+    "API",
+    "APIs",
+    "URL",
+    "URLs",
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    // Shouted for emphasis
+    "NOT",
+    "FOR",
+    "SLOWER",
+    "DELIVERY",
+    "OK",
+  ])
+
+  it("spells out every acronym a card uses, wherever it appears", () => {
+    // The first version of this only looked at prompts that were a bare
+    // acronym, which is precisely how "Under MVCC, how does..." slipped
+    // through. An acronym is no less opaque for being mid-sentence.
+    const offenders: string[] = []
+    for (const card of ALL_CARDS) {
+      if (card.expands) continue
+      const text = [
+        card.prompt,
+        ...card.speed.map((v) => v.question ?? ""),
+      ].join(" ")
+      const found = [...text.matchAll(/\b([A-Za-z]?[A-Z]{2,}[A-Za-z0-9]*)\b/g)]
+        .map((m) => m[1]!)
+        .filter((t) => !NOT_AN_ACRONYM.has(t))
+      if (found.length)
+        offenders.push(`${card.id} (${[...new Set(found)].join(", ")})`)
+    }
+    expect(offenders, "cards using an acronym they never spell out").toEqual([])
+  })
+
   it("spells out every card whose subject is an acronym", () => {
     // A ratchet. Knowing an SLO is "the reliability target you commit to
     // internally" while not knowing it stands for Service Level Objective is a
