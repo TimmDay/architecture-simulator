@@ -2,6 +2,18 @@
 @import "@xyflow/react/dist/style.css";
 
 @theme {
+  /*
+   * The nav's height, declared once.
+   *
+   * It used to be assumed -- `calc(100vh - 49px)` in the build workspace, and
+   * `top-[49px]` on the pomodoro banner. Then the pomodoro button made the nav
+   * 53px and both were silently wrong: the canvas overflowed the viewport by
+   * exactly the difference. A nav height is a contract between the nav and
+   * everything sized against it, so it is written down rather than measured
+   * off a screenshot.
+   */
+  --nav-h: 3.25rem;
+
   --color-ink: #0b0e14;
   --color-panel: #131822;
   --color-panel-2: #1a2130;

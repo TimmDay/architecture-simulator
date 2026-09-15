@@ -15,9 +15,9 @@ const LINKS = [
 export function Nav() {
   const pathname = usePathname()
   return (
-    <nav className="border-line bg-panel/60 sticky top-0 z-50 border-b backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center gap-1 px-4 py-2.5">
-        <span className="text-chalk mr-4 text-sm font-semibold tracking-tight">
+    <nav className="border-line bg-panel/60 sticky top-0 z-50 h-[var(--nav-h)] border-b backdrop-blur">
+      <div className="mx-auto flex h-full max-w-7xl items-center gap-1 px-4">
+        <span className="text-chalk mr-2 text-sm font-semibold tracking-tight sm:mr-4">
           Architecture<span className="text-accent">Simulator</span>
         </span>
         {LINKS.map(({ href, label, icon: Icon }) => {
@@ -32,7 +32,13 @@ export function Nav() {
               }`}
             >
               <Icon size={14} />
-              {label}
+              {/*
+                Labels are dropped on a phone: the wordmark, three links and
+                the timer do not fit in 390px, and the row overflowed
+                horizontally. Icons stay, and the name stays for a screen
+                reader.
+              */}
+              <span className="max-sm:sr-only">{label}</span>
             </Link>
           )
         })}

@@ -204,7 +204,7 @@ export function PomodoroTimer() {
       </div>
 
       {done && (
-        <div className="border-pass/40 bg-pass/10 fixed inset-x-0 top-[49px] z-50 flex items-center gap-3 border-b px-4 py-2.5 text-[13px]">
+        <div className="border-pass/40 bg-pass/10 absolute inset-x-0 top-full z-50 flex items-center gap-3 border-b px-4 py-2.5 text-[13px]">
           <Coffee size={15} className="text-pass shrink-0" />
           <span className="text-chalk">
             {FOCUS_MINUTES} minutes done

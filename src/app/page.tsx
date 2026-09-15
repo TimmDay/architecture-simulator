@@ -3,18 +3,7 @@ import { Boxes, Layers } from "lucide-react"
 import { ALL_CARDS } from "~/drill/cards"
 import { SCENARIOS } from "~/sim/scenarios"
 import { ALL_TOPIC_IDS } from "~/topics"
-
-/**
- * Where "buy me a coffee" points. Set it to your page on whichever service you
- * pick and the text becomes a link; leave it null and it stays plain prose, so
- * a half-finished setup never ships a dead link.
- *
- * Deliberately a plain outbound link rather than any service's embeddable
- * widget. Widgets load third-party script and set cookies, which would make
- * the sentence above it -- "your data stays in your browser" -- untrue on the
- * one page that makes the claim.
- */
-const DONATE_URL: string | null = null
+import { DONATE_URL, REPO_URL } from "~/lib/donate"
 
 export default function HomePage() {
   return (
@@ -31,8 +20,9 @@ export default function HomePage() {
         tomorrow&apos;s Drill queue.
       </p>
       <p className="text-fog mt-3 max-w-2xl text-[15px] leading-relaxed">
-        Content is free and zipped locally. Your data is your own and stays in
-        your browser. You can{" "}
+        Content is free and local. Your data is your own and stays in your
+        browser — no cookies, no account, nothing that identifies you. I count
+        page views so I know whether anyone is using this. You can{" "}
         {DONATE_URL ? (
           <a
             href={DONATE_URL}
@@ -46,7 +36,16 @@ export default function HomePage() {
           "buy me a coffee"
         )}{" "}
         if you want to affirm my choice to say f u to ads (noting that yes, I am
-        redundant).
+        redundant). The code is{" "}
+        <a
+          href={REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent hover:text-chalk underline underline-offset-2 transition-colors"
+        >
+          on GitHub
+        </a>{" "}
+        — fork it and make it your own.
       </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">

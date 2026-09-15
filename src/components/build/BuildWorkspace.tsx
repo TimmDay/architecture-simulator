@@ -533,7 +533,7 @@ function Workspace({ scenario }: { scenario: Scenario }) {
   const e2e = live.metrics.endToEnd
 
   return (
-    <div className="flex h-[calc(100vh-49px)]">
+    <div className="flex h-[calc(100vh-var(--nav-h))]">
       {/* Left: brief + palette */}
       {/* Scrolls internally so the reset button can stay pinned to the base
           rather than hiding below a long brief and a long palette. */}
