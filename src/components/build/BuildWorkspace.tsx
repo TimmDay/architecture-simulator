@@ -17,10 +17,11 @@ import Link from "next/link"
 import {
   Activity,
   ChevronLeft,
-  Play,
   Lightbulb,
+  MousePointerClick,
   PanelLeftOpen,
   PanelRightOpen,
+  Play,
   RotateCcw,
   ShieldAlert,
   Undo2,
@@ -99,6 +100,14 @@ function Workspace({ scenario }: { scenario: Scenario }) {
    * stays shut while you click a box would make selection look broken.
    */
   const [railOpen, setRailOpen] = useState(false)
+  /**
+   * Which panel a phone is looking at.
+   *
+   * Three columns at 390px gave the canvas 38px. They become tabs instead --
+   * the brief, the board and the results are read one at a time on a phone
+   * anyway, and the canvas gets the whole screen when it is the one in view.
+   */
+  const [tab, setTab] = useState<"brief" | "canvas" | "panel">("canvas")
   const [stashed, setStashed] = useState<{
     nodes: (ComponentNodeType | ClientNodeType)[]
     edges: FlowEdge[]
@@ -256,18 +265,20 @@ function Workspace({ scenario }: { scenario: Scenario }) {
     [setEdges, nodes],
   )
 
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault()
-      const kind = event.dataTransfer.getData(
-        "application/architecture-kind",
-      ) as ComponentKind
+  /**
+   * Put a component on the canvas at a screen point.
+   *
+   * Shared by dragging and tapping. HTML5 drag-and-drop never fires on a touch
+   * device -- `touchstart` arrives, `dragstart` does not -- so on a phone the
+   * palette was decorative and nothing could be placed at all. Arming a
+   * component with one tap and dropping it with a second is the same gesture
+   * without the parts that need a mouse.
+   */
+  const placeComponent = useCallback(
+    (kind: ComponentKind, screenX: number, screenY: number) => {
       const spec = CATALOGUE[kind]
       if (!spec) return
-      const position = screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      })
+      const position = screenToFlowPosition({ x: screenX, y: screenY })
       const id = nextId(kind)
       const component: PlacedComponent = {
         id,
@@ -300,9 +311,39 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           data: { component },
         } as ComponentNodeType,
       ])
+      justPlaced.current = true
       setSelectedId(id)
     },
     [screenToFlowPosition, setNodes],
+  )
+
+  const [armedKind, setArmedKind] = useState<ComponentKind | null>(null)
+  /**
+   * Set while the selection came from placing rather than from tapping an
+   * existing component. Placing selects the new node so its config is ready,
+   * but on a phone that must not switch tabs: you would be thrown off the
+   * board the instant you put something on it.
+   */
+  const justPlaced = useRef(false)
+
+  useEffect(() => {
+    if (!armedKind) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setArmedKind(null)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [armedKind])
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault()
+      const kind = event.dataTransfer.getData(
+        "application/architecture-kind",
+      ) as ComponentKind
+      placeComponent(kind, event.clientX, event.clientY)
+    },
+    [placeComponent],
   )
 
   const updateComponent = useCallback(
@@ -520,7 +561,13 @@ function Workspace({ scenario }: { scenario: Scenario }) {
   }, [result, scenario])
 
   useEffect(() => {
-    if (selectedId || selectedEdgeId || result) setRailOpen(true)
+    if (selectedId || selectedEdgeId || result) {
+      setRailOpen(true)
+      // On a phone the panel is a tab, not a column: opening it off-screen
+      // would make running a pressure test look like it did nothing.
+      if (justPlaced.current) justPlaced.current = false
+      else setTab("panel")
+    }
   }, [selectedId, selectedEdgeId, result])
 
   const selected = nodes.find((n) => n.id === selectedId)
@@ -533,11 +580,38 @@ function Workspace({ scenario }: { scenario: Scenario }) {
   const e2e = live.metrics.endToEnd
 
   return (
-    <div className="flex h-[calc(100vh-var(--nav-h))]">
+    <div className="flex h-[calc(100vh-var(--nav-h))] flex-col sm:flex-row">
+      <div className="border-line bg-panel/40 flex shrink-0 border-b sm:hidden">
+        {(
+          [
+            ["brief", "Brief"],
+            ["canvas", "Board"],
+            ["panel", "Results"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            onClick={() => setTab(value)}
+            aria-pressed={tab === value}
+            className={`flex-1 py-2.5 text-[12px] font-medium transition-colors ${
+              tab === value
+                ? "text-chalk border-accent border-b-2"
+                : "text-fog border-b-2 border-transparent"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Left: brief + palette */}
       {/* Scrolls internally so the reset button can stay pinned to the base
           rather than hiding below a long brief and a long palette. */}
-      <aside className="border-line bg-panel/40 flex w-80 shrink-0 flex-col border-r">
+      <aside
+        className={`border-line bg-panel/40 flex flex-col border-r max-sm:min-h-0 max-sm:w-full max-sm:flex-1 max-sm:border-r-0 sm:w-80 sm:shrink-0 ${
+          tab === "brief" ? "" : "max-sm:hidden"
+        }`}
+      >
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           <Link
             href="/build"
@@ -598,7 +672,11 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           </div>
 
           <div className="mt-5">
-            <Palette kinds={scenario.availableKinds} />
+            <Palette
+              kinds={scenario.availableKinds}
+              armed={armedKind}
+              onArm={setArmedKind}
+            />
           </div>
         </div>
 
@@ -629,7 +707,11 @@ function Workspace({ scenario }: { scenario: Scenario }) {
       </aside>
 
       {/* Centre: canvas */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div
+        className={`flex min-w-0 flex-1 flex-col ${
+          tab === "canvas" ? "" : "max-sm:hidden"
+        }`}
+      >
         {/* Two explicit rows rather than one wrapping one. Wrapping broke
             wherever it happened to fit, so Pressure would sit up beside the
             metrics while Security and Observability dropped below it -- three
@@ -717,7 +799,26 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           </div>
         )}
 
-        <div ref={wrapper} className="min-h-0 flex-1">
+        {armedKind && (
+          <div className="border-accent/30 bg-accent/10 flex items-center gap-2 border-b px-4 py-2 text-[12px]">
+            <MousePointerClick size={13} className="text-accent shrink-0" />
+            <span className="text-chalk">
+              Tap the canvas to place{" "}
+              <strong>{CATALOGUE[armedKind]?.label}</strong>.
+            </span>
+            <button
+              onClick={() => setArmedKind(null)}
+              className="text-fog hover:text-chalk ml-auto shrink-0 underline underline-offset-2"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        <div
+          ref={wrapper}
+          className={`min-h-0 flex-1 ${armedKind ? "cursor-crosshair" : ""}`}
+        >
           <ReactFlow
             nodes={decoratedNodes}
             edges={decoratedEdges}
@@ -729,7 +830,12 @@ function Workspace({ scenario }: { scenario: Scenario }) {
               e.preventDefault()
               e.dataTransfer.dropEffect = "move"
             }}
-            onNodeClick={(_, n) => {
+            onNodeClick={(event, n) => {
+              if (armedKind) {
+                placeComponent(armedKind, event.clientX, event.clientY)
+                setArmedKind(null)
+                return
+              }
               setSelectedId(n.id)
               setSelectedEdgeId(null)
             }}
@@ -737,7 +843,12 @@ function Workspace({ scenario }: { scenario: Scenario }) {
               setSelectedEdgeId(e.id)
               setSelectedId(null)
             }}
-            onPaneClick={() => {
+            onPaneClick={(event) => {
+              if (armedKind) {
+                placeComponent(armedKind, event.clientX, event.clientY)
+                setArmedKind(null)
+                return
+              }
               setSelectedId(null)
               setSelectedEdgeId(null)
             }}
@@ -763,7 +874,7 @@ function Workspace({ scenario }: { scenario: Scenario }) {
           onClick={() => setRailOpen(true)}
           title="Show panel"
           aria-label="Show panel"
-          className="border-line bg-panel/40 text-fog hover:text-chalk flex w-8 shrink-0 flex-col items-center gap-2 border-l pt-4 transition-colors"
+          className="border-line bg-panel/40 text-fog hover:text-chalk hidden w-8 shrink-0 flex-col items-center gap-2 border-l pt-4 transition-colors sm:flex"
         >
           <PanelLeftOpen size={14} />
           <span
@@ -776,13 +887,13 @@ function Workspace({ scenario }: { scenario: Scenario }) {
       )}
 
       <aside
-        className={`border-line bg-panel/40 shrink-0 overflow-y-auto border-l p-4 ${
-          railOpen ? "w-80" : "hidden"
-        }`}
+        className={`border-line bg-panel/40 overflow-y-auto border-l p-4 max-sm:w-full max-sm:flex-1 max-sm:border-l-0 sm:shrink-0 ${
+          tab === "panel" ? "max-sm:block" : "max-sm:hidden"
+        } ${railOpen ? "sm:block sm:w-80" : "sm:hidden"}`}
       >
         <button
           onClick={() => setRailOpen(false)}
-          className="text-fog hover:text-chalk mb-3 ml-auto flex items-center gap-1 text-[11px]"
+          className="text-fog hover:text-chalk mb-3 ml-auto hidden items-center gap-1 text-[11px] sm:flex"
         >
           Hide <PanelRightOpen size={12} />
         </button>

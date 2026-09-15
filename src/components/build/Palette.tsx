@@ -3,7 +3,16 @@
 import { CATALOGUE, HOURS_PER_MONTH } from "~/sim/catalogue"
 import type { ComponentKind } from "~/sim/types"
 
-export function Palette({ kinds }: { kinds: ComponentKind[] }) {
+export function Palette({
+  kinds,
+  armed,
+  onArm,
+}: {
+  kinds: ComponentKind[]
+  /** The component waiting to be placed by tapping the canvas. */
+  armed: ComponentKind | null
+  onArm: (kind: ComponentKind | null) => void
+}) {
   return (
     <div className="space-y-1.5">
       <h3 className="text-fog mb-2 text-xs font-medium tracking-wide uppercase">
@@ -16,14 +25,22 @@ export function Palette({ kinds }: { kinds: ComponentKind[] }) {
           spec.costPerInstanceHourUsd * HOURS_PER_MONTH,
         )
         return (
-          <div
+          <button
             key={kind}
+            type="button"
             draggable
+            aria-pressed={armed === kind}
             onDragStart={(e) => {
+              onArm(null)
               e.dataTransfer.setData("application/architecture-kind", kind)
               e.dataTransfer.effectAllowed = "move"
             }}
-            className="border-line bg-panel hover:border-accent/60 cursor-grab rounded-lg border px-2.5 py-2 active:cursor-grabbing"
+            onClick={() => onArm(armed === kind ? null : kind)}
+            className={`w-full cursor-grab rounded-lg border px-2.5 py-2 text-left transition-colors active:cursor-grabbing ${
+              armed === kind
+                ? "border-accent bg-accent/15"
+                : "border-line bg-panel hover:border-accent/60"
+            }`}
           >
             <div className="text-chalk text-[12px] font-medium">
               {spec.label}
@@ -42,12 +59,13 @@ export function Palette({ kinds }: { kinds: ComponentKind[] }) {
                 </>
               )}
             </div>
-          </div>
+          </button>
         )
       })}
       <p className="text-fog/50 pt-2 text-[10px] leading-relaxed">
-        Drag onto the canvas. Not everything here belongs in every design —
-        picking the wrong component is part of the exercise.
+        Drag onto the canvas, or tap one and then tap where it goes. Not
+        everything here belongs in every design — picking the wrong component is
+        part of the exercise.
       </p>
     </div>
   )

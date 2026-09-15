@@ -16,9 +16,14 @@ export function Nav() {
   const pathname = usePathname()
   return (
     <nav className="border-line bg-panel/60 sticky top-0 z-50 h-[var(--nav-h)] border-b backdrop-blur">
-      <div className="mx-auto flex h-full max-w-7xl items-center gap-1 px-4">
-        <span className="text-chalk mr-2 text-sm font-semibold tracking-tight sm:mr-4">
-          Architecture<span className="text-accent">Simulator</span>
+      <div className="mx-auto flex h-full max-w-7xl items-center gap-1 px-3 sm:px-4">
+        <span className="text-chalk mr-2 text-sm font-semibold tracking-tight max-[360px]:hidden sm:mr-4">
+          {/* The wordmark, four links and the timer come to 409px at 390px
+              wide. Dropping the second word buys back 52px, which clears a
+              modern phone; the smallest ones (320px) need the whole wordmark
+              gone, and Home is one tap away regardless. */}
+          Architecture
+          <span className="text-accent max-sm:hidden">Simulator</span>
         </span>
         {LINKS.map(({ href, label, icon: Icon }) => {
           const active =

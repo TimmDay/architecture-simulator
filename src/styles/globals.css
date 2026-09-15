@@ -50,6 +50,19 @@ body {
   width: 7px;
   height: 7px;
 }
+
+/*
+ * A 7px handle is fine under a mouse and hopeless under a finger, which
+ * covers roughly 44px. The dot stays small so the diagram still reads; the
+ * hit area grows behind it via a transparent pseudo-element.
+ */
+@media (pointer: coarse) {
+  .react-flow__handle::after {
+    content: "";
+    position: absolute;
+    inset: -14px;
+  }
+}
 .react-flow__attribution {
   display: none;
 }

@@ -158,6 +158,7 @@ export const designCards: Card[] = [
       "Design a notification system that sends email, push and SMS. What matters?",
     answer:
       "It is a fanout pipeline with unreliable third parties at the end, so the shape is a queue per channel, workers per channel, and each provider behind its own retry policy and circuit breaker — APNs being slow must not stop email. Deduplication matters because the same event can arrive twice and nobody forgives a duplicate push at 3am, so every notification carries an idempotency key. User preferences, quiet hours and rate caps per user are a filtering stage before the queue, not an afterthought. And delivery is at-least-once at best, with the provider's own acceptance being the only receipt you get.",
+    expands: "SMS: Short Message Service",
     emFraming:
       "The part that bites in production is per-user rate limiting: a bug that triggers a million notifications is not stopped by your infrastructure limits, which are sized for a million notifications. A per-user cap is the thing that keeps a loop from becoming a public incident.",
     topicIds: [
@@ -333,6 +334,7 @@ export const designCards: Card[] = [
       "Design a payment system. What separates a good answer from a bad one?",
     answer:
       "Treating money as something that must never be wrong rather than something that must be fast. Every operation carries a client-generated idempotency key, because a timeout tells you nothing and a retry must not double-charge. State lives in a ledger of immutable double-entry records rather than a mutable balance column, so the balance is derived and every change is auditable. The payment provider is a slow third party, so the request accepts and enqueues rather than waiting, and confirmation arrives asynchronously — which means webhooks, which are themselves at-least-once and must be verified and deduplicated. Reconciliation against the provider is a scheduled job, not an optimisation, because the two systems will disagree.",
+    expands: "PCI DSS: Payment Card Industry Data Security Standard",
     emFraming:
       "The answer that lands is 'I would rather be slow and correct', said explicitly. Also worth saying: never store card details — let the provider tokenise, so the data you would have to protect never reaches you, and PCI scope shrinks to almost nothing.",
     topicIds: [

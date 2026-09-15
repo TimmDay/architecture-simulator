@@ -171,6 +171,7 @@ export const transactionCards: Card[] = [
       "Why do databases keep multiple versions of a row rather than updating it in place?",
     answer:
       "So that readers and writers stop blocking each other. With multi-version concurrency control, an update writes a new version rather than overwriting; each transaction sees the version that was current as of its snapshot. A long-running read therefore gets a consistent view without holding locks that would stall writers, and writers proceed without waiting for readers to finish. The costs are storage for old versions and a process to reclaim them — Postgres's vacuum, and the bloat that follows when it cannot keep up.",
+    expands: "Multi-Version Concurrency Control",
     emFraming:
       "The operational tail of this matters: long-lived transactions hold back the cleanup horizon, so one forgotten open transaction in a reporting job can bloat a production database. 'Why is the disk full' is often 'who left a transaction open'.",
     topicIds: ["transactions.mvcc"],
@@ -203,6 +204,7 @@ export const transactionCards: Card[] = [
       "Under MVCC, how does a long analytical read see a consistent picture without blocking writes?",
     answer:
       "It takes a snapshot — effectively a marker of which transactions had committed at the moment it began. Every row it reads is resolved to the newest version visible as of that marker, ignoring anything committed later. Writers carry on creating new versions the whole time; they are simply invisible to this reader. So the read is consistent as of a point in time, and is stale by however long it has been running.",
+    expands: "Multi-Version Concurrency Control",
     emFraming:
       "This is why 'the report disagrees with the dashboard' is often not a bug. Worth being able to say out loud: the report is consistent, just as of ten minutes ago.",
     topicIds: ["transactions.mvcc", "consistency.eventual"],

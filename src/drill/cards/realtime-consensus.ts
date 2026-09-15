@@ -7,6 +7,7 @@ export const realtimeConsensusCards: Card[] = [
       "Long polling, Server-Sent Events and WebSockets: what does each cost, and how do you choose?",
     answer:
       "Long polling holds a request open until there is news, then the client immediately reconnects — it works through any proxy and needs no special infrastructure, at the cost of a connection setup per message and awkward handling when nothing happens. SSE is a single long-lived HTTP response the server streams into: one direction only, text only, with automatic reconnection and event ids built in, which makes it the right answer for feeds, notifications and progress. WebSockets upgrade to a full-duplex binary connection, which you need when the client sends frequently too — chat, collaborative editing, games — and which costs you a protocol that many proxies handle badly and a connection you must now keep alive, authenticate and scale.",
+    expands: "SSE: Server-Sent Events",
     emFraming:
       "The question that settles it is how often the client sends. If it is mostly listening, SSE is simpler in every way that matters and people reach past it out of habit. Reserve WebSockets for genuinely bidirectional traffic, and remember that mobile clients drop connections constantly, so reconnection and replay-from-last-event matter more than the transport choice itself.",
     topicIds: ["realtime.transport-choice", "realtime.push-vs-pull"],
@@ -177,6 +178,7 @@ export const realtimeConsensusCards: Card[] = [
       "A node holding a distributed lock pauses for a long GC, its lease expires, another node takes the lock, then the first wakes up and writes. How do you prevent the corruption?",
     answer:
       "Fencing tokens. Every time the lock is granted the coordinator issues a monotonically increasing number, and the client must present it with every write to the protected resource. The storage layer remembers the highest token it has seen and rejects anything lower. So the paused node wakes holding token 33, the new holder has 34, and the stale write is refused by the resource itself rather than by a timeout nobody can rely on. Without this, a lock with a lease is only advisory — a pause longer than the lease silently breaks mutual exclusion.",
+    expands: "GC: garbage collection",
     emFraming:
       "The general lesson is that you cannot make a distributed lock safe with timeouts alone, because a process can be paused for arbitrarily long by GC, a hypervisor, or a slow disk, and it has no way to know it was. Safety has to be enforced at the resource, by something that can order the requests.",
     topicIds: [
@@ -251,6 +253,7 @@ export const realtimeConsensusCards: Card[] = [
       "What is a CRDT, and when is it the right answer over last-write-wins?",
     answer:
       "A data type whose merge operation is commutative, associative and idempotent, so replicas that received the same updates in any order converge on the same state without coordination — counters, sets, and sequences for collaborative text all have well-known constructions. It is the right answer over last-write-wins when discarding a concurrent update would lose real user intent: two people adding different items to a shared list should end with both, not with whichever clock happened to be later. The cost is metadata — CRDTs carry causality information that grows with participants, and some, like text sequences, need tombstones that must eventually be collected.",
+    expands: "CRDT: Conflict-free Replicated Data Type",
     emFraming:
       "Last-write-wins is not wrong, it is a choice to discard data silently, and it is fine for a presence indicator or a cursor position. The question to ask is what a lost concurrent update actually costs the user, and whether anyone would notice. For a shopping basket or a shared document, they would.",
     topicIds: [
