@@ -13,6 +13,11 @@ Two modes sharing one topic taxonomy:
 Fail a rule in Build and the matching flashcards land at the front of tomorrow's Drill queue.
 That loop is the product.
 
+Free, ad-free, and progress stays in the browser. If it helped:
+[buy me a coffee](https://ko-fi.com/timmday). The link lives in one constant,
+`DONATE_URL` in `src/lib/donate.ts` — set it to `null` and every mention of it disappears
+rather than shipping a dead link.
+
 ## Running it
 
 ```bash

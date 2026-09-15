@@ -3,18 +3,7 @@ import { Boxes, Layers } from "lucide-react"
 import { ALL_CARDS } from "~/drill/cards"
 import { SCENARIOS } from "~/sim/scenarios"
 import { ALL_TOPIC_IDS } from "~/topics"
-
-/**
- * Where "buy me a coffee" points. Set it to your page on whichever service you
- * pick and the text becomes a link; leave it null and it stays plain prose, so
- * a half-finished setup never ships a dead link.
- *
- * Deliberately a plain outbound link rather than any service's embeddable
- * widget. Widgets load third-party script and set cookies, which would make
- * the sentence above it -- "your data stays in your browser" -- untrue on the
- * one page that makes the claim.
- */
-const DONATE_URL: string | null = null
+import { DONATE_URL } from "~/lib/donate"
 
 export default function HomePage() {
   return (
