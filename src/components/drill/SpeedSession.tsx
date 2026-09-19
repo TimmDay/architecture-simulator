@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { ArrowRight, Check, Shuffle, X } from "lucide-react"
 import type { Card, CardState } from "~/drill/types"
 import {
@@ -34,6 +34,11 @@ const DECK_TABS: [DeckFilter, string, string][] = [
 
 export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
   const [deck, setDeck] = useState<DeckFilter>("all")
+  // The card the "Next card" (and Skip / Random) buttons land on is usually
+  // below the fold once the answer and its explanation are showing, so
+  // advancing has to bring it back to the top itself -- scroll-margin-top
+  // keeps it clear of the sticky nav rather than tucked underneath it.
+  const cardRef = useRef<HTMLDivElement>(null)
   // Built once. A card with three variants contributes three questions, and
   // no two questions about the same card sit next to each other.
   const order = useMemo(
@@ -56,6 +61,7 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
 
   const advance = useCallback(
     (random: boolean) => {
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
       setPicked(null)
       onAdvance?.()
       if (random) {
@@ -142,7 +148,10 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
         </span>
       </div>
 
-      <div className="border-line bg-panel rounded-xl border p-6">
+      <div
+        ref={cardRef}
+        className="border-line bg-panel scroll-mt-[var(--nav-h)] rounded-xl border p-6"
+      >
         <p className="text-chalk text-[17px] leading-relaxed font-medium">
           {item.variant.question ?? card.prompt}
         </p>
