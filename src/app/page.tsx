@@ -126,7 +126,7 @@ export default function HomePage() {
               ) : (
                 "Buy me a coffee"
               )}{" "}
-              if you want to affirm my choice to say f u to ads — noting that
+              if you want to affirm my f u to ads — noting that
               yes, I am redundant.
             </p>
           </div>
