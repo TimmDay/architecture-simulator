@@ -5,10 +5,22 @@ import { usePathname } from "next/navigation"
 import { PomodoroTimer } from "./PomodoroTimer"
 import { Boxes, ChartNoAxesColumn, Layers } from "lucide-react"
 
-/* No Home entry: the wordmark is the way back, as it is on most sites. */
+/*
+ * Two groups, because they are two kinds of thing.
+ *
+ * Drill and Build are where the work happens, so they sit beside the
+ * wordmark. Progress belongs with the timer and the goal trophy: all three
+ * are about how the studying is going rather than about doing any, and
+ * grouping them puts every instrument in one corner.
+ *
+ * No Home entry either way -- the wordmark is the way back, as on most sites.
+ */
 const LINKS = [
   { href: "/drill", label: "Drill", icon: Layers },
   { href: "/build", label: "Build", icon: Boxes },
+]
+
+const TRACKING_LINKS = [
   { href: "/progress", label: "Progress", icon: ChartNoAxesColumn },
 ]
 
@@ -31,31 +43,53 @@ export function Nav() {
           Architecture
           <span className="text-accent max-sm:hidden">Sim</span>
         </Link>
-        {LINKS.map(({ href, label, icon: Icon }) => {
-          const active =
-            href === "/" ? pathname === "/" : pathname.startsWith(href)
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors sm:px-3.5 ${
-                active ? "bg-panel-2 text-chalk" : "text-fog hover:text-chalk"
-              }`}
-            >
-              <Icon size={14} />
-              {/*
-                Labels are dropped on a phone: the wordmark, the links and
-                the timer do not fit in 390px, and the row overflowed
-                horizontally. Icons stay, and the name stays for a screen
-                reader.
-              */}
-              <span className="max-sm:sr-only">{label}</span>
-            </Link>
-          )
-        })}
+        {LINKS.map((l) => (
+          <NavLink key={l.href} {...l} pathname={pathname} />
+        ))}
 
-        <PomodoroTimer />
+        {/*
+          `ml-auto` lives here rather than on the timer, which used to carry
+          it. A component that pushes itself to one end cannot be grouped
+          with anything -- it would have shoved itself away from Progress.
+          Positioning is the nav's business; the timer's is the timer.
+        */}
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5">
+          {TRACKING_LINKS.map((l) => (
+            <NavLink key={l.href} {...l} pathname={pathname} />
+          ))}
+          <PomodoroTimer />
+        </div>
       </div>
     </nav>
+  )
+}
+
+function NavLink({
+  href,
+  label,
+  icon: Icon,
+  pathname,
+}: {
+  href: string
+  label: string
+  icon: typeof Layers
+  pathname: string
+}) {
+  const active = href === "/" ? pathname === "/" : pathname.startsWith(href)
+  return (
+    <Link
+      href={href}
+      className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors sm:px-3.5 ${
+        active ? "bg-panel-2 text-chalk" : "text-fog hover:text-chalk"
+      }`}
+    >
+      <Icon size={14} />
+      {/*
+        Labels are dropped on a phone: the wordmark, the links and the timer
+        do not fit in 390px, and the row overflowed horizontally. Icons stay,
+        and the name stays for a screen reader.
+      */}
+      <span className="max-sm:sr-only">{label}</span>
+    </Link>
   )
 }

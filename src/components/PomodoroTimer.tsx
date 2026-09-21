@@ -157,7 +157,9 @@ export function PomodoroTimer() {
 
   return (
     <>
-      <div className="ml-auto flex items-center gap-2">
+      {/* No `ml-auto`: the nav decides where this sits, so that it can be
+          grouped with the Progress link rather than pushed away from it. */}
+      <div className="flex items-center gap-2">
         {doneToday > 0 && (
           <span className="text-fog/60 text-[11px]">{doneToday}/2 today</span>
         )}
