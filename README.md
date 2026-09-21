@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>Learn system architecture by defending it.</strong><br>
-  Design a system for a scenario, then turn the traffic up and start breaking things.
+  System diagramming with a traffic simulation slide.
 </p>
 
 <p align="center">
@@ -21,11 +21,11 @@
 
 ## What it is
 
-Interview prep for system design that makes you _produce_ answers rather than recognise them.
+Interview prep tool for system architecture design.
 
-**Build** gives you a scenario with hard requirements — p99 under 400ms, 99.9% available, under $900 a month — and a scoped palette. Drag components out, wire them together, then attack the result: raise the traffic, kill a node, flush the cache, poison a queue, run a security probe. You get a grade and a list of findings.
+**Build** diagram to a scenario with hard requirements — p99 under 400ms, 99.9% available, under $900 a month — and a scoped palette. Drag components out, wire them together, then attack the result: raise the traffic, kill a node, flush the cache, poison a queue, run a security probe. You get a grade and a list of findings.
 
-**Drill** is the recall half: 204 cards across 166 topics, in multiple choice for volume or typed-answer for the real thing, on an SM-2 schedule.
+**Drill** is flash cards: 204 cards across 166 topics, in multiple choice for volume or typed-answer for the real thing, on an SM-2 schedule.
 
 **The loop is the product.** Fail a rule in Build and the matching cards land at the front of tomorrow's Drill queue.
 
@@ -33,21 +33,6 @@ Interview prep for system design that makes you _produce_ answers rather than re
   <img src="docs/img/drill.png" alt="The drill screen in speed mode" width="100%">
 </p>
 
-## The part worth reading
-
-If you're skimming this as a hiring signal, these are the decisions I'd defend in an interview.
-
-**The engine is pure.** `simulate(graph, load, faults) → { metrics, verdicts }` touches no React, no network, no database. Every number on screen is a render of a function that can be tested at a keyboard. The queueing maths is a deliberate game heuristic — `ρ = λ/μ`, latency inflated by `1/(1−ρ)` and clamped — and it says so in the code, because a model that quietly pretends to be queueing theory teaches the wrong lesson twice.
-
-**Types make a class of bug impossible.** `TopicId` is `keyof typeof TOPICS`, not `string`. A typo in a rule's `topicIds` is a compile error rather than a feedback loop that silently never fires. Same trick for scenarios, components and rules.
-
-**CI proves the scenarios are winnable.** Every scenario ships a reference solution, and a test grades it through the real engine and asserts every requirement still passes once it is drawn on the canvas — because the picture on screen has to be the thing CI verified, not a tidier cousin of it. Rebalance a component's capacity and break a level, and the build fails before a human notices it's unbeatable. A coverage ratchet does the same for the deck: add a topic without a card and CI goes red.
-
-**The tests match the failure mode.** Component tests run in happy-dom, which cannot catch a stale build cache serving an empty stylesheet, a canvas with zero height, or drag-and-drop that never fires — all three of which actually happened. So the things only a browser can catch are checked in a real one (`pnpm smoke`), and the pure logic is checked where it's fast.
-
-**Measurement is honest about what it can't see.** A correct Speed answer never pushes a review date out: recognising one answer among four is weaker evidence than producing it from nothing, and letting it count would inflate every interval in the deck. A card counts as learned only once it's been graded in Drill, not when a multiple-choice guess landed.
-
-**Where the model disagrees with intuition, it's written down.** Routers divide traffic across their outgoing edges; callers duplicate it. Availability is `1 − (1−a)^domains`. Cost is graded at peak load, not at the slider's current position, so sizing for peak isn't punished as over-provisioning on a quiet Tuesday. The reasoning lives in [`SPEC.md`](SPEC.md).
 
 ## Stack
 
@@ -61,8 +46,6 @@ Next.js 15 (App Router) · React 19 · TypeScript (strict, `noUncheckedIndexedAc
 pnpm install
 pnpm dev          # http://localhost:3000
 ```
-
-No configuration of any kind.
 
 ```bash
 pnpm check        # typecheck + tests, what CI runs
