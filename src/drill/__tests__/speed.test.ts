@@ -3,6 +3,7 @@ import { ALL_CARDS } from "../cards"
 import {
   EMPTY_STATS,
   optionsFor,
+  pullForward,
   recordSpeedAnswer,
   speedItems,
   spreadItems,
@@ -191,6 +192,56 @@ describe("what a speed answer does to the schedule", () => {
     expect(after.easeFactor).toBe(before.easeFactor)
     expect(after.repetitions).toBe(before.repetitions)
     expect(after.lapses).toBe(before.lapses)
+  })
+})
+
+describe("flagging a right answer for review", () => {
+  const learned = () => {
+    let s = schedule(
+      newCardState("c"),
+      "good",
+      new Date("2026-01-01T09:00:00Z"),
+    )
+    s = schedule(s, "good", new Date("2026-01-02T09:00:00Z"))
+    return schedule(s, "good", new Date("2026-01-08T09:00:00Z"))
+  }
+  const now = new Date("2026-01-10T09:00:00Z")
+
+  it("brings the card back, exactly as a wrong answer would", () => {
+    // Same function behind both, so "as expensive as getting it wrong" is a
+    // property of the code rather than a claim in a comment.
+    const before = learned()
+    expect(isDue(before, now)).toBe(false)
+    expect(isDue(pullForward(before, now), now)).toBe(true)
+  })
+
+  it("caps the interval, so the next grade cannot leap it away again", () => {
+    // The part that makes the flag stick. Moving only the due date would buy a
+    // single extra look: one "good" on a 30-day card lands it at ~75 days.
+    const before = learned()
+    expect(before.intervalDays).toBeGreaterThan(1)
+    expect(pullForward(before, now).intervalDays).toBe(1)
+  })
+
+  it("leaves the answer counted correct rather than recording it twice", () => {
+    // The UI flags the state `recordSpeedAnswer` already produced. Running the
+    // recording again would show two attempts where the user answered once.
+    const counted = recordSpeedAnswer(learned(), true)
+    const flagged = pullForward(counted, now)
+    expect(flagged.speedSeen).toBe(1)
+    expect(flagged.speedRight).toBe(1)
+  })
+
+  it("does not touch the memory model -- Discuss still owns that", () => {
+    const before = learned()
+    const after = pullForward(before, now)
+    expect(after.easeFactor).toBe(before.easeFactor)
+    expect(after.repetitions).toBe(before.repetitions)
+    expect(after.lapses).toBe(before.lapses)
+    expect(after.lastReviewedAt).toBe(before.lastReviewedAt)
+    // Not `enqueuedBy`: that field means a simulator rule failed, and the
+    // review screen renders a scenario name from it.
+    expect(after.enqueuedBy).toBeUndefined()
   })
 })
 

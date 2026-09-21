@@ -1,10 +1,11 @@
 "use client"
 
 import { useCallback, useMemo, useRef, useState } from "react"
-import { ArrowRight, Check, Shuffle, X } from "lucide-react"
+import { ArrowRight, Check, RotateCcw, Shuffle, X } from "lucide-react"
 import type { Card, CardState } from "~/drill/types"
 import {
   optionsFor,
+  pullForward,
   recordSpeedAnswer,
   speedItems,
   weightedOrder,
@@ -54,6 +55,11 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
   const [index, setIndex] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
   const [stats, setStats] = useState(EMPTY_STATS)
+  // The card state AFTER the answer was recorded, held so the review-queue
+  // button can build on it. Re-reading the `states` map would fetch the
+  // pre-answer copy -- `pick` saves to the store and never writes back to the
+  // map -- and flagging that would silently undo the tally just written.
+  const [answeredState, setAnsweredState] = useState<CardState | null>(null)
 
   const item = order[index % Math.max(1, order.length)]
   const card = item?.card
@@ -63,6 +69,7 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
     (random: boolean) => {
       cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
       setPicked(null)
+      setAnsweredState(null)
       onAdvance?.()
       if (random) {
         // A different card, not merely the next one -- drilling in a fixed order
@@ -89,6 +96,7 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
       const state = states.get(card.id)
       if (state) {
         const next = recordSpeedAnswer(state, correct)
+        setAnsweredState(next)
         if (next !== state) void getProgressStore().saveCardState(next)
       }
       onAnswered?.()
@@ -96,12 +104,39 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
     [picked, card, options, states, onAnswered],
   )
 
+  /**
+   * "I got that right and I do not believe myself."
+   *
+   * The answer stays counted as correct -- the tally `pick` already wrote is
+   * what gets flagged, not a second recording of the same question -- but the
+   * card comes back tomorrow regardless. Recognition among four options is the
+   * one place a lucky guess is indistinguishable from knowledge from the
+   * outside, so this is the only honest signal available, and it has to be the
+   * cheapest button on the screen or it will not get pressed.
+   */
+  const queueForReview = useCallback(() => {
+    if (answeredState) {
+      void getProgressStore().saveCardState(pullForward(answeredState))
+    }
+    advance(false)
+  }, [answeredState, advance])
+
   if (!item || !card) {
     return <p className="text-fog text-sm">No cards available.</p>
   }
 
   const answered = picked !== null
   const gotItRight = answered && options.find((o) => o.text === picked)?.correct
+  /*
+    Vocabulary cards are Speed-only by design -- the Discuss queue is built
+    from CORE_CARDS -- so flagging one would move a due date nothing ever
+    reads. A button that does nothing on a third of the deck is worse than no
+    button, so it is hidden there rather than shipped inert.
+  */
+  const canQueue =
+    gotItRight &&
+    answeredState !== null &&
+    (card.deck ?? "core") !== "vocabulary"
 
   return (
     <div>
@@ -156,7 +191,14 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
           {item.variant.question ?? card.prompt}
         </p>
 
-        <div className="mt-5 space-y-2">
+        {/* Grouped so the four options read as one control rather than four
+            unrelated buttons -- and so a test can find them without guessing
+            which buttons on the card are answers. */}
+        <div
+          role="group"
+          aria-label="Answer options"
+          className="mt-5 space-y-2"
+        >
           {options.map((o) => {
             const chosen = picked === o.text
             const reveal = answered && o.correct
@@ -210,17 +252,29 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
                 {card.note}
               </p>
             )}
-            <div className="mt-4 flex gap-2">
+            {/* Wraps rather than shrinks: three labelled buttons do not fit
+                across a phone, and a clipped "Next card" is worse than a
+                second row. */}
+            <div className="mt-4 flex flex-wrap gap-2">
               <button
                 onClick={() => advance(false)}
-                className="bg-accent/15 text-accent hover:bg-accent/25 flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-medium transition-colors"
+                className="bg-accent/15 text-accent hover:bg-accent/25 flex flex-1 basis-32 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-medium transition-colors"
               >
                 Next card <ArrowRight size={13} />
               </button>
+              {canQueue && (
+                <button
+                  onClick={queueForReview}
+                  title="Counts as correct, but brings the card back tomorrow anyway"
+                  className="border-line text-fog hover:text-chalk hover:border-fog/50 flex flex-1 basis-32 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-sm transition-colors"
+                >
+                  <RotateCcw size={13} /> Review queue
+                </button>
+              )}
               <button
                 onClick={() => advance(true)}
                 title="Jump somewhere else in the deck"
-                className="border-line text-fog hover:text-chalk hover:border-fog/50 flex items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm transition-colors"
+                className="border-line text-fog hover:text-chalk hover:border-fog/50 flex flex-1 basis-24 items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm transition-colors"
               >
                 <Shuffle size={13} /> Random
               </button>
@@ -250,7 +304,9 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
         Getting one right here does not push its review date out — recognising
         an answer among four is weaker evidence than producing it from nothing,
         and letting it count would quietly inflate every interval in your deck.
-        Getting one wrong does pull the card forward.
+        Getting one wrong does pull the card forward, and{" "}
+        <strong className="text-fog/80">Review queue</strong> does the same to a
+        right answer you do not believe.
       </p>
     </div>
   )
