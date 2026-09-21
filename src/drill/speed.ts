@@ -153,8 +153,31 @@ export function recordSpeedAnswer(
     speedRight: (state.speedRight ?? 0) + (correct ? 1 : 0),
   }
   if (correct) return counted
+  return pullForward(counted, now)
+}
+
+/**
+ * Bring a card back to the front of the schedule, leaving the record alone.
+ *
+ * Two callers, deliberately the same function. A wrong pick uses it because
+ * failing to recognise an answer with it in front of you is strong evidence.
+ * The "Review queue" button uses it because a right answer you did not trust --
+ * a guess, or a shape you half-remembered -- is evidence of the same thing, and
+ * only you can see the difference. Flagging one is therefore exactly as
+ * expensive as getting it wrong, minus being counted wrong.
+ *
+ * Capping the interval at a day is the part that matters, and is why this is
+ * not `enqueueFromVerdict`: that moves the due date but leaves the interval, so
+ * a card sitting on a 30-day interval would come back once, get graded "good",
+ * and leap straight to seventy-five days. You would have bought a single look
+ * at a card you had just told the app you were shaky on.
+ *
+ * Ease, repetitions and lapses are untouched either way: Discuss owns those,
+ * and this only ever pulls a card forward.
+ */
+export function pullForward(state: CardState, now = new Date()): CardState {
   return {
-    ...counted,
+    ...state,
     dueAt: now.toISOString(),
     intervalDays: Math.min(state.intervalDays, 1),
   }
