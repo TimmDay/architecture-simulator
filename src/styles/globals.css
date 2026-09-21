@@ -33,6 +33,30 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/*
+ * The home page's one flourish: a wide, soft wash of the accent behind the
+ * hero, fading out before it reaches the cards.
+ *
+ * Deliberately absolute rather than fixed, so it belongs to the hero and
+ * scrolls away with it -- a viewport-pinned glow would sit over the copy the
+ * whole way down a phone screen, where the page runs to about 1400px. It is
+ * also wider than its box on purpose, which is why the page clips overflow:
+ * a radial that ends at the viewport edge draws a visible seam there.
+ */
+.hero-glow {
+  background:
+    radial-gradient(
+      68rem 30rem at 50% -6rem,
+      color-mix(in oklab, var(--color-accent) 22%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      40rem 22rem at 78% 4rem,
+      color-mix(in oklab, var(--color-accent) 10%, transparent),
+      transparent 70%
+    );
+}
+
 /* xyflow renders its own surface; keep it on our palette. */
 .react-flow__background {
   background: var(--color-ink);
