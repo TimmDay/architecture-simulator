@@ -48,18 +48,23 @@ export default function HomePage() {
           <p className="text-chalk/80 mt-6 text-lg leading-relaxed text-balance">
             Made redundant and need to study for interviews? I&apos;m with ya.
           </p>
-          <p className="text-fog mt-4 text-[15px] leading-relaxed text-pretty">
+          {/* Left-aligned on a phone. Centring a four-line paragraph across
+            342px costs more in readability than it buys in symmetry -- the eye
+            has to hunt for the start of every line. The heading and the lead
+            are short enough to stay centred. */}
+          <p className="text-fog mt-4 text-left text-[15px] leading-relaxed text-pretty sm:text-center">
             Drill recalls the ideas. Build makes you apply them under load,
             faults and a budget — fail a rule in Build and the matching cards
             land in tomorrow&apos;s Drill queue.
           </p>
         </header>
 
-        {/* Sits directly above the two cards so the fork lands on them. Hidden
-          on a phone, where they stack and the fork would point at nothing. */}
-        <CircuitMotif className="mx-auto mt-10 hidden sm:block" />
+        {/* Sits directly above the cards so the trace lands on them. It picks
+          its own shape from the breakpoint -- a fork when they sit side by
+          side, a single stem when they stack. */}
+        <CircuitMotif className="mx-auto mt-8 sm:mt-10" />
 
-        <div className="mx-auto mt-12 grid max-w-4xl gap-4 sm:mt-2 sm:grid-cols-2">
+        <div className="mx-auto mt-2 grid max-w-4xl gap-4 sm:grid-cols-2">
           <Link
             href="/drill"
             className="border-line bg-panel/80 hover:border-accent/50 hover:bg-panel group rounded-xl border p-6 transition-colors"
