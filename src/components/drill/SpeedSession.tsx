@@ -23,6 +23,9 @@ type Props = {
   onAnswered?: () => void
   /** Fired when moving on, which is where Mix slots its Discuss card in. */
   onAdvance?: () => void
+  /** Whether the Concepts/Vocab deck picker is shown -- tucked behind the
+   *  filters accordion in DrillSession, closed by default. */
+  showDeckFilter: boolean
 }
 
 type DeckFilter = "all" | "core" | "vocabulary"
@@ -33,7 +36,13 @@ const DECK_TABS: [DeckFilter, string, string][] = [
   ["vocabulary", "Vocab", "One-line definitions of the terms"],
 ]
 
-export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
+export function SpeedSession({
+  cards,
+  states,
+  onAnswered,
+  onAdvance,
+  showDeckFilter,
+}: Props) {
   const [deck, setDeck] = useState<DeckFilter>("all")
   // The card the "Next card" (and Skip / Random) buttons land on is usually
   // below the fold once the answer and its explanation are showing, so
@@ -140,26 +149,30 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
 
   return (
     <div>
-      <div className="border-line bg-panel mb-4 inline-flex rounded-lg border p-0.5">
-        {DECK_TABS.map(([value, label, hint]) => (
-          <button
-            key={value}
-            onClick={() => {
-              setDeck(value)
-              setIndex(0)
-              setPicked(null)
-            }}
-            title={hint}
-            className={`rounded-md px-3 py-1 text-[11px] font-medium transition-colors ${
-              deck === value
-                ? "bg-panel-2 text-chalk"
-                : "text-fog hover:text-chalk"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {showDeckFilter && (
+        <div className="mb-4 flex justify-center">
+          <div className="border-line bg-panel inline-flex rounded-lg border p-0.5">
+            {DECK_TABS.map(([value, label, hint]) => (
+              <button
+                key={value}
+                onClick={() => {
+                  setDeck(value)
+                  setIndex(0)
+                  setPicked(null)
+                }}
+                title={hint}
+                className={`rounded-md px-3 py-1 text-[11px] font-medium transition-colors ${
+                  deck === value
+                    ? "bg-panel-2 text-chalk"
+                    : "text-fog hover:text-chalk"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="text-fog mb-4 flex items-center justify-between text-xs">
         <span>
