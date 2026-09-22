@@ -30,13 +30,13 @@ describe("DrillSession", () => {
   it("opens in Speed, with the modes in escalating order", async () => {
     render(<DrillSession />)
     await waitFor(() =>
-      expect(screen.getByRole("radio", { name: "Speed" })).toBeInTheDocument(),
+      expect(screen.getByRole("radio", { name: "MC" })).toBeInTheDocument(),
     )
-    expect(screen.getByRole("radio", { name: "Speed" })).toBeChecked()
+    expect(screen.getByRole("radio", { name: "MC" })).toBeChecked()
     // No typing on arrival.
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
 
-    const modes = ["Speed", "Discuss", "Mix"]
+    const modes = ["MC", "Discuss", "Mix"]
     const rendered = screen
       .getAllByRole("radio")
       .map((el) => el.textContent ?? "")
@@ -266,10 +266,10 @@ describe("DrillSession", () => {
     render(<DrillSession />)
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Vocabulary" }),
+        screen.getByRole("button", { name: "Vocab" }),
       ).toBeInTheDocument(),
     )
-    await user.click(screen.getByRole("button", { name: "Vocabulary" }))
+    await user.click(screen.getByRole("button", { name: "Vocab" }))
 
     await answer(user, true)
     expect(screen.getByText("Correct.")).toBeInTheDocument()
@@ -288,6 +288,8 @@ describe("DrillSession", () => {
     // Opens on a multiple-choice question, not a textarea: the Discuss card
     // arrives after a stretch of Speed, never as the first thing you see.
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
-    expect(screen.getByText(/Pick the answer/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole("group", { name: "Answer options" }),
+    ).toBeInTheDocument()
   })
 })
