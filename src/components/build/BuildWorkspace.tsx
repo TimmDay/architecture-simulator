@@ -810,7 +810,7 @@ function Workspace({ scenario }: { scenario: Scenario }) {
             {scenario.title}
           </h2>
           <p className="text-chalk/80 mt-2.5 text-[13px] leading-relaxed whitespace-pre-line">
-            {scenario.brief}
+            {formatBrief(scenario.brief)}
           </p>
 
           <div className="border-line bg-panel mt-4 rounded-lg border p-3">
@@ -1260,6 +1260,22 @@ function Metric({
       </span>
     </span>
   )
+}
+
+/**
+ * Scenario briefs are written as source template literals with manual line
+ * breaks for readability in the code, plus blank lines between paragraphs.
+ * Rendered verbatim with whitespace-pre-line, those mid-paragraph breaks
+ * become forced line breaks at whatever width the source happened to wrap
+ * at, which reads fine on desktop but ragged on narrow screens. Collapse
+ * single newlines to spaces so paragraphs reflow naturally, while keeping
+ * blank lines as paragraph breaks.
+ */
+function formatBrief(brief: string): string {
+  return brief
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.replace(/\s*\n\s*/g, " "))
+    .join("\n\n")
 }
 
 export function BuildWorkspace({ scenario }: { scenario: Scenario }) {
