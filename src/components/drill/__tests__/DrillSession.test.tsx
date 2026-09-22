@@ -27,6 +27,12 @@ describe("DrillSession", () => {
     await waitFor(() => expect(screen.getByRole("textbox")).toBeInTheDocument())
   }
 
+  /** Difficulty and the Concepts/Vocab deck picker sit behind this, closed by default. */
+  const openFilters = async (user: ReturnType<typeof userEvent.setup>) => {
+    const toggle = await screen.findByRole("button", { name: /filters/i })
+    await user.click(toggle)
+  }
+
   it("opens in Speed, with the modes in escalating order", async () => {
     render(<DrillSession />)
     await waitFor(() =>
@@ -44,7 +50,9 @@ describe("DrillSession", () => {
   })
 
   it("offers every difficulty, with All selected", async () => {
+    const user = userEvent.setup()
     render(<DrillSession />)
+    await openFilters(user)
     await waitFor(() =>
       expect(screen.getByRole("radio", { name: /^All/ })).toBeInTheDocument(),
     )
@@ -52,6 +60,22 @@ describe("DrillSession", () => {
       expect(screen.getByRole("radio", { name: level })).toBeInTheDocument()
     }
     expect(screen.getByRole("radio", { name: /^All/ })).toBeChecked()
+  })
+
+  it("keeps difficulty and deck filters collapsed until asked for", async () => {
+    render(<DrillSession />)
+    const toggle = await screen.findByRole("button", { name: /filters/i })
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+    expect(screen.queryByRole("radio", { name: /^All/ })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Concepts" }),
+    ).not.toBeInTheDocument()
+
+    const user = userEvent.setup()
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("radio", { name: /^All/ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Concepts" })).toBeInTheDocument()
   })
 
   it("keeps the mastery stats collapsed so the card has the page", async () => {
@@ -130,6 +154,7 @@ describe("DrillSession", () => {
   it("narrows the deck when a difficulty is picked", async () => {
     const user = userEvent.setup()
     render(<DrillSession />)
+    await openFilters(user)
     await waitFor(() =>
       expect(
         screen.getByRole("radio", { name: /^Tricky/ }),
@@ -195,6 +220,7 @@ describe("DrillSession", () => {
   }
 
   const openConcepts = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openFilters(user)
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Concepts" }),
@@ -264,6 +290,7 @@ describe("DrillSession", () => {
   it("hides it on vocabulary, which the Discuss queue never draws from", async () => {
     const user = userEvent.setup()
     render(<DrillSession />)
+    await openFilters(user)
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Vocab" }),

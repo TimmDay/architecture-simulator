@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Check, MessageSquare, Zap } from "lucide-react"
+import { Check, ChevronRight, MessageSquare, Zap } from "lucide-react"
 import { ALL_CARDS, CORE_CARDS } from "~/drill/cards"
 import { buildQueue, type QueueItem } from "~/drill/queue"
 import {
@@ -46,6 +46,10 @@ export function DrillSession() {
    */
   const [mode, setMode] = useState<Mode>("speed")
   const [difficulty, setDifficulty] = useState<DifficultyFilter>("all")
+  // Difficulty and deck are picked once in a while, not once a card; tucking
+  // them behind an accordion keeps the mode toggle -- the thing you touch
+  // every session -- from sharing a row with controls you barely need.
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [states, setStates] = useState<Map<string, CardState> | null>(null)
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [index, setIndex] = useState(0)
@@ -159,28 +163,46 @@ export function DrillSession() {
   )
 
   const controls = (
-    <div className="mb-5 flex flex-wrap items-center justify-center gap-3">
-      <Segmented
-        options={MODES}
-        value={mode}
-        onChange={(m) => {
-          setMode(m)
-          setShowDiscuss(false)
-        }}
-      />
-      <Segmented
-        options={DIFFICULTY_FILTERS.map(
-          ([value, label, hint]) =>
-            [value, `${label} ${counts[value]}`, hint] as [
-              DifficultyFilter,
-              string,
-              string,
-            ],
-        )}
-        value={difficulty}
-        onChange={setDifficulty}
-        small
-      />
+    <div className="mb-5 flex flex-col items-center gap-3">
+      <div className="flex items-center gap-2">
+        <Segmented
+          options={MODES}
+          value={mode}
+          onChange={(m) => {
+            setMode(m)
+            setShowDiscuss(false)
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((o) => !o)}
+          aria-expanded={filtersOpen}
+          aria-label="Filters"
+          title="Difficulty and deck filters"
+          className="border-line bg-panel text-fog hover:text-chalk flex items-center justify-center rounded-lg border px-2 transition-colors"
+        >
+          <ChevronRight
+            size={14}
+            className={`transition-transform ${filtersOpen ? "rotate-90" : ""}`}
+          />
+        </button>
+      </div>
+
+      {filtersOpen && (
+        <Segmented
+          options={DIFFICULTY_FILTERS.map(
+            ([value, label, hint]) =>
+              [value, `${label} ${counts[value]}`, hint] as [
+                DifficultyFilter,
+                string,
+                string,
+              ],
+          )}
+          value={difficulty}
+          onChange={setDifficulty}
+          small
+        />
+      )}
     </div>
   )
 
@@ -211,6 +233,7 @@ export function DrillSession() {
             states={states}
             onAnswered={onSpeedAnswered}
             onAdvance={onSpeedAdvance}
+            showDeckFilter={filtersOpen}
           />
         </div>
 
@@ -256,7 +279,11 @@ export function DrillSession() {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
         {controls}
-        <SpeedSession cards={speedPool} states={states} />
+        <SpeedSession
+          cards={speedPool}
+          states={states}
+          showDeckFilter={filtersOpen}
+        />
         <MasteryStats cards={CORE_CARDS} states={states} />
       </div>
     )
