@@ -28,9 +28,9 @@ type Props = {
 type DeckFilter = "all" | "core" | "vocabulary"
 
 const DECK_TABS: [DeckFilter, string, string][] = [
-  ["all", "Everything", "Concepts and vocabulary together"],
+  ["all", "all", "Concepts and vocabulary together"],
   ["core", "Concepts", "Mechanisms and trade-offs"],
-  ["vocabulary", "Vocabulary", "One-line definitions of the terms"],
+  ["vocabulary", "Vocab", "One-line definitions of the terms"],
 ]
 
 export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
@@ -163,15 +163,13 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
 
       <div className="text-fog mb-4 flex items-center justify-between text-xs">
         <span>
-          {stats.answered > 0 ? (
+          {stats.answered > 0 && (
             <>
               {stats.right}/{stats.answered} correct
               {stats.streak > 1 && (
                 <span className="text-pass ml-2">{stats.streak} in a row</span>
               )}
             </>
-          ) : (
-            <>Pick the answer. Nothing to type.</>
           )}
         </span>
         <span className="flex gap-1.5">
@@ -299,15 +297,6 @@ export function SpeedSession({ cards, states, onAnswered, onAdvance }: Props) {
           </div>
         )}
       </div>
-
-      <p className="text-fog/60 mt-4 text-[11px] leading-relaxed">
-        Getting one right here does not push its review date out — recognising
-        an answer among four is weaker evidence than producing it from nothing,
-        and letting it count would quietly inflate every interval in your deck.
-        Getting one wrong does pull the card forward, and{" "}
-        <strong className="text-fog/80">Review queue</strong> does the same to a
-        right answer you do not believe.
-      </p>
     </div>
   )
 }
