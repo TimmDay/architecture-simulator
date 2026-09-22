@@ -28,7 +28,7 @@ import { TOPICS } from "~/topics"
 type Mode = "speed" | "discuss" | "mix"
 
 const MODES: [Mode, string, string][] = [
-  ["speed", "Speed", "Multiple choice, no typing"],
+  ["speed", "MC", "Multiple choice, no typing"],
   ["discuss", "Discuss", "Type it out, then judge yourself"],
   ["mix", "Mix", `Speed, with a Discuss card every ${MIX_RATIO} or so`],
 ]
@@ -159,7 +159,7 @@ export function DrillSession() {
   )
 
   const controls = (
-    <div className="mb-5 flex flex-wrap items-center gap-3">
+    <div className="mb-5 flex flex-wrap items-center justify-center gap-3">
       <Segmented
         options={MODES}
         value={mode}
