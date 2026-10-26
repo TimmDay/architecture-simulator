@@ -13,11 +13,25 @@
  * first deploy attempt -- points the build somewhere Vercel does not look.
  */
 
+/** Replaced by Architech: every page goes there. */
+const ARCHITECH = "https://tim-game-architech.firebaseapp.com/"
+
 /** @type {import("next").NextConfig} */
 const config = {
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   pageExtensions: ["ts", "tsx"],
   outputFileTracingRoot: process.cwd(),
+  // Everything but /sw.js, which returning visitors' browsers must still be
+  // able to fetch: it's the worker that clears their cache (see public/sw.js).
+  async redirects() {
+    return [
+      {
+        source: "/:path((?!sw\\.js$).*)",
+        destination: ARCHITECH,
+        permanent: false,
+      },
+    ]
+  },
 }
 
 export default config

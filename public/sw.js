@@ -1,46 +1,23 @@
 /**
- * Minimal offline cache for the app shell.
+ * Retirement worker. This app has been replaced by Architech, and every page
+ * now redirects there. Visitors who came before still have the old worker,
+ * which answered from its cache and so would never see the redirect. The
+ * browser fetches this file to check for updates, installs it, and it
+ * clears every cache, unregisters itself and reloads open tabs, which then
+ * reach the redirect.
  *
- * Same-origin GET requests only: cross-origin traffic (Firestore, Vercel
- * Analytics) passes straight through untouched, since replaying a stale read
- * from a database is worse than no cache at all.
- *
- * Cache-first with a background revalidate: a repeat visit renders instantly
- * from cache, and the next fetch picks up whatever changed.
+ * next.config.js must keep serving this file rather than redirecting it, or
+ * the update check fails and the old worker stays.
  */
-const CACHE = "arch-sim-v1"
+self.addEventListener("install", () => self.skipWaiting())
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)),
-        ),
-      ),
-  )
-  self.clients.claim()
-})
-
-self.addEventListener("fetch", (event) => {
-  const { request } = event
-  if (request.method !== "GET") return
-  if (new URL(request.url).origin !== self.location.origin) return
-
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            caches
-              .open(CACHE)
-              .then((cache) => cache.put(request, response.clone()))
-          }
-          return response
-        })
-        .catch(() => cached)
-      return cached ?? network
-    }),
+    (async () => {
+      for (const key of await caches.keys()) await caches.delete(key)
+      await self.registration.unregister()
+      const tabs = await self.clients.matchAll({ type: "window" })
+      for (const tab of tabs) tab.navigate(tab.url)
+    })(),
   )
 })
