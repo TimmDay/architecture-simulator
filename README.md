@@ -5,12 +5,13 @@
   System diagramming with a traffic simulation slide.
 </p>
 
+> [!IMPORTANT]
+> **Replaced by [Architech](https://tim-game-architech.firebaseapp.com).** This repo is archived and read-only, and the old app's address now redirects there. Architech carries on everything useful from here (the simulation model, production settings, fault rounds, and the Drill cards as discussion decks) as a game with scenarios, stars and a provider toggle. Source: [TimmDay/tim-game-architech](https://github.com/TimmDay/tim-game-architech).
+
 <p align="center">
-  <a href="https://architecture-simulator-five.vercel.app"><strong>Live app →</strong></a>
+  <a href="https://tim-game-architech.firebaseapp.com"><strong>Play Architech →</strong></a>
   &nbsp;·&nbsp;
   <a href="SPEC.md">Design notes</a>
-  &nbsp;·&nbsp;
-  <img src="https://github.com/TimmDay/architecture-simulator/actions/workflows/ci.yml/badge.svg" alt="CI">
 </p>
 
 <p align="center">
